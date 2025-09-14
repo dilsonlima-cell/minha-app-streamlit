@@ -1,3 +1,137 @@
+import streamlit as st
+import pandas as pd
+import io
+import re
+import json
+import os
+from datetime import datetime
+from contextlib import contextmanager
+
+# --- PALETA DE CORES ---
+COLOR_PALETTE = {
+    "darkest_green": "#255000",
+    "dark_green": "#588100",
+    "medium_green": "#8db600",
+    "light_green": "#c6da52",
+    "very_light_green": "#ffff8b",
+    "white": "#FFFFFF",
+    "black": "#000000",
+    "gray_text": "#333333"
+}
+
+
+# --- CONFIGURAÇÃO DA PÁGINA E ESTILO ---
+st.set_page_config(layout="wide", page_title="SolidWorks BOM Processor")
+
+# Estilo CSS (mantido da versão anterior)
+st.markdown(f"""
+<style>
+    .stApp {{ background-color: {COLOR_PALETTE["very_light_green"]}; color: {COLOR_PALETTE["darkest_green"]}; }}
+    .header-bar {{ background-color: {COLOR_PALETTE["darkest_green"]}; padding: 10px 50px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }}
+    .header-bar h1 {{ color: {COLOR_PALETTE["white"]}; margin: 0; font-size: 1.8rem; font-weight: 600; }}
+    .header-bar .stMarkdown p {{ color: {COLOR_PALETTE["light_green"]}; margin: 0; font-size: 0.9rem; }}
+    .header-nav {{ display: flex; gap: 20px; }}
+    .header-nav .stMarkdown p {{ color: {COLOR_PALETTE["medium_green"]}; cursor: pointer; transition: color 0.2s; }}
+    .header-nav .stMarkdown p:hover {{ color: {COLOR_PALETTE["white"]}; }}
+    .start-processing-section {{ background-color: {COLOR_PALETTE["medium_green"]}; padding: 40px; text-align: center; border-radius: 10px; margin-bottom: 30px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }}
+    .start-processing-section h2 {{ color: {COLOR_PALETTE["darkest_green"]}; font-size: 2rem; font-weight: 700; margin-bottom: 10px; }}
+    .start-processing-section p {{ color: {COLOR_PALETTE["darkest_green"]}; font-size: 1.1rem; }}
+    .card {{ background-color: {COLOR_PALETTE["white"]}; border: 1px solid {COLOR_PALETTE["light_green"]}; border-radius: 10px; padding: 25px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); margin-bottom: 25px; }}
+    h1 {{ color: {COLOR_PALETTE["darkest_green"]}; font-weight: 700; font-size: 2.5rem; padding-bottom: 0.3em; }}
+    h2, h3 {{ color: {COLOR_PALETTE["darkest_green"]}; font-weight: 600; border: none; padding-bottom: 0px; margin-top: 0px; }}
+    .card h2 {{ margin-bottom: 1rem; }}
+    body, p, label, .stMarkdown {{ color: {COLOR_PALETTE["gray_text"]} !important; }}
+    .stApp > header, .stApp > div:first-child > div:nth-child(2) > div.stMarkdown, .stApp > div:first-child > div:nth-child(2) > p {{ color: {COLOR_PALETTE["darkest_green"]} !important; }}
+    .stButton>button {{ background-color: {COLOR_PALETTE["dark_green"]}; color: {COLOR_PALETTE["white"]}; border-radius: 8px; border: none; padding: 10px 24px; font-weight: 500; transition: background-color 0.2s; }}
+    .stButton>button:hover {{ background-color: {COLOR_PALETTE["darkest_green"]}; color: {COLOR_PALETTE["white"]}; }}
+    [data-testid="stSidebar"] {{ background-color: {COLOR_PALETTE["light_green"]}; border-right: 1px solid {COLOR_PALETTE["dark_green"]}; }}
+    [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {{ color: {COLOR_PALETTE["darkest_green"]}; }}
+    [data-testid="stSidebar"] .stMarkdown p, [data-testid="stSidebar"] label {{ color: {COLOR_PALETTE["gray_text"]} !important; }}
+    .st-emotion-cache-115fcme summary, .st-emotion-cache-115fcme button {{ color: {COLOR_PALETTE["darkest_green"]} !important; font-weight: 600; font-size: 1.25rem; }}
+    .stAlert[data-baseweb="alert"] > div {{ border-radius: 8px; }}
+    .stAlert.stAlert_success {{ background-color: #d4edda; color: #155724; border-color: #c3e6cb; }}
+    .stAlert.stAlert_warning {{ background-color: #fff3cd; color: #856404; border-color: #ffeeba; }}
+    .stAlert.stAlert_info {{ background-color: #d1ecf1; color: #0c5460; border-color: #bee5eb; }}
+    .stAlert.stAlert_error {{ background-color: #f8d7da; color: #721c24; border-color: #f5c6cb; }}
+    [data-testid="stDataFrame"] {{ border: 1px solid {COLOR_PALETTE["light_green"]}; border-radius: 8px; }}
+    [data-testid="stDataFrame"] .col-header {{ background-color: {COLOR_PALETTE["light_green"]} !important; }}
+    [data-testid="stDataFrame"] .col-header-cell {{ color: {COLOR_PALETTE["darkest_green"]} !important; font-weight: 600; }}
+    [data-testid="stDataFrame"] .data-cell {{ background-color: {COLOR_PALETTE["white"]} !important; color: {COLOR_PALETTE["gray_text"]} !important; border-color: {COLOR_PALETTE["light_green"]} !important; }}
+    .upload-area-main .stFileUploader > div:first-child {{ background-color: {COLOR_PALETTE["white"]}; border: 2px dashed {COLOR_PALETTE["dark_green"]}; border-radius: 10px; padding: 30px; text-align: center; color: {COLOR_PALETTE["gray_text"]}; }}
+    .upload-area-main .stFileUploader > div:first-child svg {{ color: {COLOR_PALETTE["dark_green"]}; }}
+    .card .st-emotion-cache-cnjvw7 h2, .card .st-emotion-cache-cnjvw7 h3 {{ color: {COLOR_PALETTE["darkest_green"]}; }}
+    .st-emotion-cache-j9xjqf {{ gap: 20px; }}
+</style>
+""", unsafe_allow_html=True)
+
+# --- FUNÇÃO AUXILIAR PARA CARD ---
+@contextmanager
+def card_container():
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    yield
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+# --- FUNÇÕES AUXILIARES ---
+
+def load_sequentials(file_path):
+    if os.path.exists(file_path):
+        with open(file_path, 'r') as f:
+            try:
+                return json.load(f)
+            except json.JSONDecodeError:
+                return {}
+    return {}
+
+def save_sequentials(file_path, data):
+    with open(file_path, 'w') as f:
+        json.dump(data, f, indent=4)
+
+@st.cache_data
+def load_data(uploaded_file):
+    if uploaded_file is None:
+        return None, "Nenhum arquivo carregado."
+
+    try:
+        if uploaded_file.name.endswith(".xlsx"):
+            df = pd.read_excel(uploaded_file, dtype=str).fillna('')
+        else: # TXT
+            content = uploaded_file.getvalue().decode('utf-8').splitlines()
+            header_line_index = -1
+            for i in range(len(content) - 1, -1, -1):
+                if content[i].strip():
+                    header_line_index = i
+                    break
+            if header_line_index == -1:
+                return None, "Não foi possível encontrar o cabeçalho no TXT."
+            header = [h.strip() for h in content[header_line_index].split('\t')]
+            data_lines = content[:header_line_index]
+            parsed_data = []
+            for line in data_lines:
+                if line.strip():
+                    cells = [cell.strip() for cell in line.split('\t')]
+                    while len(cells) < len(header):
+                        cells.append('')
+                    parsed_data.append(cells[:len(header)])
+            df = pd.DataFrame(parsed_data, columns=header)
+            df = df.iloc[::-1].reset_index(drop=True)
+        
+        # *** ALTERAÇÃO 1: Garante que colunas essenciais, incluindo MATERIAL e DIMENSÕES, existam ***
+        essential_cols = ['Nº DA PEÇA', 'PROCESSO', 'GRUPO DE PRODUTO', 'TÍTULO', 'Nº DO ITEM', 'MATERIAL', 'DIMENSÕES']
+        for col in essential_cols:
+            if col not in df.columns:
+                df[col] = ''
+        
+        if 'QTD.' in df.columns:
+            df['QTD.'] = pd.to_numeric(df['QTD.'], errors='coerce').fillna(0)
+        
+        # Garante que todas as colunas sejam string para consistência
+        df = df.astype(str).fillna('')
+
+        return df, "Arquivo lido com sucesso."
+    except Exception as e:
+        return None, f"Erro ao ler o arquivo: {e}"
+
 def process_codes(df, state_file):
     if df is None or df.empty:
         return pd.DataFrame(), []
@@ -10,20 +144,17 @@ def process_codes(df, state_file):
     manufactured_pattern = re.compile(r'^\d{2}-\d{4}-\d{4}-.*')
     commercial_pattern = re.compile(r'^\d{3}-\d{4}$')
 
-    # --- Preencher coluna PROCESSO se estiver vazia ---
+    # *** ALTERAÇÃO 2: Lógica condicional para a coluna PROCESSO ***
     processed_count = 0
     for i, row in df.iterrows():
+        # Apenas preenche se a célula 'PROCESSO' estiver vazia
         if not row['PROCESSO'].strip():
-            df.loc[i, 'PROCESSO'] = (
-                'FABRICADO' if manufactured_pattern.match(str(row['Nº DA PEÇA'])) else 'COMERCIAL'
-            )
+            df.loc[i, 'PROCESSO'] = 'FABRICADO' if manufactured_pattern.match(str(row['Nº DA PEÇA'])) else 'COMERCIAL'
             processed_count += 1
     report_log.append(f"Coluna 'PROCESSO' preenchida para {processed_count} linhas vazias.")
 
-    # --- Inicializar coluna de códigos ---
     df['CÓDIGO FINAL'] = ''
 
-    # --- Ajustar sequenciais iniciais (para comerciais já codificados) ---
     for _, row in df.iterrows():
         num = str(row['Nº DA PEÇA'])
         if commercial_pattern.match(num):
@@ -36,30 +167,12 @@ def process_codes(df, state_file):
                 continue
     report_log.append(f"Sequenciais iniciais ajustados: {sequentials or 'Nenhum'}")
 
-    # --- Definir CÓDIGO FINAL ---
     for i, row in df.iterrows():
-        processo = row['PROCESSO']
-        num = str(row['Nº DA PEÇA'])
-
-        # FABRICADO, MONTAGEM e SOLDA usam diretamente o código da peça se válido
-        if processo in ['FABRICADO', 'MONTAGEM', 'SOLDA']:
-            if manufactured_pattern.match(num):
-                df.loc[i, 'CÓDIGO FINAL'] = num
-            else:
-                # gerar código sequencial se não houver nº de peça válido
-                m = group_pattern.search(str(row['GRUPO DE PRODUTO']))
-                if m:
-                    g = m.group(1)
-                    sequentials[g] = sequentials.get(g, 0) + 1
-                    new_code = f"{g}-{sequentials[g]:04d}"
-                    df.loc[i, 'CÓDIGO FINAL'] = new_code
-                    report_log.append(f"'{row['TÍTULO']}' recebeu código: {new_code}")
-                else:
-                    df.loc[i, 'CÓDIGO FINAL'] = 'NULO'
+        if row['PROCESSO'] == 'FABRICADO':
+            df.loc[i, 'CÓDIGO FINAL'] = row['Nº DA PEÇA']
             continue
-
-        # COMERCIAL
-        if processo == 'COMERCIAL':
+        if row['PROCESSO'] == 'COMERCIAL':
+            num = str(row['Nº DA PEÇA'])
             if commercial_pattern.match(num):
                 df.loc[i, 'CÓDIGO FINAL'] = num
                 continue
@@ -71,24 +184,10 @@ def process_codes(df, state_file):
                 df.loc[i, 'CÓDIGO FINAL'] = new_code
                 report_log.append(f"'{row['TÍTULO']}' recebeu código: {new_code}")
             else:
-                df.loc[i, 'CÓDIGO FINAL'] = 'NULO'
                 report_log.append(f"'{row['TÍTULO']}' COMERCIAL sem grupo -> NULO")
-
+    
     df['CÓDIGO FINAL'] = df['CÓDIGO FINAL'].replace('', 'NULO')
 
-    # --- Ordenação lógica ---
-    def get_tipo(row):
-        if row['CÓDIGO FINAL'] != 'NULO':
-            return 1
-        return 2
-    df['TIPO'] = df.apply(get_tipo, axis=1)
-    df = df.sort_values(by=['TIPO', 'CÓDIGO FINAL']).drop(columns=['TIPO']).reset_index(drop=True)
-
-    # --- Padronizar strings ---
-    for col in df.select_dtypes(include=['object']):
-        df[col] = df[col].astype(str).str.upper()
-
-    # --- Construir hierarquia PAI/FILHO ---
     df['Nº DO ITEM'] = df['Nº DO ITEM'].astype(str).str.strip()
     code_map = pd.Series(df['CÓDIGO FINAL'].values, index=df['Nº DO ITEM']).to_dict()
 
@@ -97,38 +196,139 @@ def process_codes(df, state_file):
         while len(parts) > 1:
             parts = parts[:-1]
             parent = '.'.join(parts)
-            if parent in code_map and code_map[parent] != 'NULO':
+            if parent in code_map:
                 return code_map[parent]
         return None
 
-    df['CÓDIGO PAI'] = df['Nº DO ITEM'].apply(lambda x: find_parent_code(x) or '')
-
-    # --- Herança de código para pais com NULO mas filhos válidos ---
-    for i, row in df.iterrows():
-        if row['CÓDIGO FINAL'] == 'NULO':
-            filhos = [cid for cid in df['Nº DO ITEM'] if cid.startswith(row['Nº DO ITEM'] + '.')]
-            if filhos:
-                filho_codigo = df.loc[df['Nº DO ITEM'] == filhos[0], 'CÓDIGO FINAL'].values[0]
-                if filho_codigo != 'NULO':
-                    df.loc[i, 'CÓDIGO FINAL'] = filho_codigo
-                    report_log.append(f"'{row['TÍTULO']}' herdou código do filho: {filho_codigo}")
-
-    # --- Reordenamento de colunas ---
+    df['CÓDIGO PAI'] = df['Nº DO ITEM'].apply(lambda x: find_parent_code(x) or "")
+    report_log.append("Hierarquia pai-filho processada.")
+    
+    # *** ALTERAÇÃO 3: Reordenamento de Colunas para incluir DIMENSÕES ***
     cols = df.columns.tolist()
-    final_order = [
-        col for col in [
-            'Nº DO ITEM', 'TÍTULO', 'Nº DA PEÇA', 'PROCESSO',
-            'GRUPO DE PRODUTO', 'MATERIAL', 'DIMENSÕES',
-            'CÓDIGO FINAL', 'CÓDIGO PAI'
-        ] if col in cols
-    ]
-    other_cols = [col for col in cols if col not in final_order]
-    df = df[final_order + other_cols]
+    
+    # Posiciona CÓDIGO PAI
+    if 'CÓDIGO PAI' in cols:
+        cols.remove('CÓDIGO PAI')
+        if 'CÓDIGO FINAL' in cols:
+            final_code_index = cols.index('CÓDIGO FINAL')
+            cols.insert(final_code_index + 1, 'CÓDIGO PAI')
 
-    # --- Salvar estado ---
+    # Posiciona DIMENSÕES
+    if 'DIMENSÕES' in cols:
+        cols.remove('DIMENSÕES')
+        if 'MATERIAL' in cols:
+            material_index = cols.index('MATERIAL')
+            cols.insert(material_index + 1, 'DIMENSões')
+        else: # Caso MATERIAL não exista, adiciona no final
+            cols.append('DIMENSÕES')
+
+    df = df[cols]
+
+    def get_tipo(row):
+        if row['PROCESSO'] == 'FABRICADO': return 1
+        if row['PROCESSO'] == 'COMERCIAL' and row['CÓDIGO FINAL'] != 'NULO': return 2
+        return 3
+    df['TIPO'] = df.apply(get_tipo, axis=1)
+    df = df.sort_values(by=['TIPO','CÓDIGO FINAL']).drop(columns=['TIPO']).reset_index(drop=True)
+
+    for col in df.select_dtypes(include=['object']):
+        df[col] = df[col].astype(str).str.upper()
+
     save_sequentials(state_file, sequentials)
     report_log.append(f"Sequenciais salvos em {state_file}")
+    
     num_codes_generated = len([log for log in report_log if 'recebeu código:' in log])
     report_log.insert(0, f"Processamento concluído. {num_codes_generated} novos códigos comerciais foram gerados.")
 
     return df, report_log
+
+@st.cache_data
+def to_excel(df):
+    out = io.BytesIO()
+    with pd.ExcelWriter(out, engine='xlsxwriter') as w:
+        df.to_excel(w, index=False, sheet_name='Lista de Peças')
+    processed_data = out.getvalue()
+    return processed_data
+
+# --- INTERFACE (sem alterações) ---
+st.markdown(f"""
+<div class="header-bar">
+    <div>
+        <h1>SolidWorks BOM Processor</h1>
+        <p>Processamento automático de listas de materiais exportadas do SolidWorks</p>
+    </div>
+    <div class="header-nav">
+        <p>⚡ Processamento Rápido</p>
+        <p>📝 Normas Internas</p>
+        <p>💾 Export Excel/CSV</p>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+with st.sidebar:
+    st.header("Configurações")
+    st.info("Utilize as opções abaixo para configurar o processamento.", icon="⚙️")
+    state_file = st.text_input("Nome do arquivo de estado:", "estado_sequenciais.json", key="state_file_input")
+    st.info("Salva os contadores sequenciais para evitar códigos duplicados.", icon="💾")
+
+with st.container():
+    st.markdown('<div class="start-processing-section">', unsafe_allow_html=True)
+    st.header("Começar Processamento")
+    st.write("Faça upload do arquivo TXT ou XLSX exportado do SolidWorks.")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+with card_container():
+    st.subheader("Upload de Arquivo BOM")
+    st.write("Faça upload do arquivo TXT ou XLSX exportado do SolidWorks.")
+    uploaded_file = st.file_uploader(
+        "Clique ou arraste um arquivo",
+        type=['txt','xlsx'],
+        key="main_uploader",
+        help="TXT deve ser separado por tabulação com cabeçalho na última linha."
+    )
+    st.markdown('<div class="upload-area-main"></div>', unsafe_allow_html=True)
+
+if not uploaded_file:
+    st.info("Aguardando upload de um arquivo para começar...", icon="👆")
+else:
+    try:
+        with st.spinner("Processando..."):
+            df_raw, msg = load_data(uploaded_file)
+            if df_raw is None:
+                st.error(f"❌ {msg}")
+            else:
+                df_proc, report = process_codes(df_raw.copy(), state_file)
+                tab_relatorio, tab_dados = st.tabs(["📄 Relatório de Processamento", "📊 Lista de Peças Atualizada"])
+                with tab_relatorio:
+                    with card_container():
+                        st.subheader("Detalhes do Processamento")
+                        for log in report:
+                            if "concluído" in log: st.success(log)
+                            elif "sem grupo" in log: st.warning(log)
+                            else: st.info(log)
+                with tab_dados:
+                    with card_container():
+                        st.subheader("Dados Processados")
+                        sort_option = st.radio("Classificar por:", ("Padrão","GRUPO DE PRODUTO","PROCESSO"), horizontal=True, key="sort_radio_main")
+                        df_show = df_proc if sort_option=="Padrão" else df_proc.sort_values(by=sort_option, kind='mergesort').reset_index(drop=True)
+                        st.dataframe(df_show, use_container_width=True)
+                        st.subheader("Exportar Resultados")
+                        t = datetime.now().strftime("%Y%m%d_%H%M%S")
+                        c1,c2 = st.columns(2)
+                        with c1:
+                            st.download_button("📥 Exportar para Excel", to_excel(df_show), f"lista_codificada_{t}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                        with c2:
+                            st.download_button("📥 Exportar para CSV", df_show.to_csv(index=False).encode("utf-8"), f"lista_codificada_{t}.csv", mime="text/csv")
+    except Exception as e:
+        st.error(f"Ocorreu um erro inesperado: {e}")
+
+st.markdown("---")
+col_auto, col_flex = st.columns(2)
+with col_auto:
+    with card_container():
+        st.markdown(f"<h2>⚙️ Processamento Automático</h2>", unsafe_allow_html=True)
+        st.write("Transformação automática dos dados conforme normas internas da empresa.")
+with col_flex:
+    with card_container():
+        st.markdown(f"<h2>💾 Exportação Flexível</h2>", unsafe_allow_html=True)
+        st.write("Exporte os dados processados em formatos CSV e Excel (XLSX).")
