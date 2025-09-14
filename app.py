@@ -7,42 +7,51 @@ from datetime import datetime
 # --- CONFIGURAÇÃO DA PÁGINA E ESTILO ---
 st.set_page_config(layout="wide", page_title="Gerador de Códigos de Itens")
 
-# Estilo CSS com melhor contraste e visual mais profissional
+# Estilo CSS com alto contraste e visual aprimorado
 st.markdown("""
 <style>
     /* Cor de fundo principal */
     .stApp {
-        background-color: #f8f9fa;
+        background-color: #e9ecef; /* Cinza de fundo mais escuro */
     }
     /* Estilo para os cards */
     .card {
         background-color: #ffffff;
-        border-radius: 10px;
-        padding: 20px;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.05);
-        margin-bottom: 20px;
+        border-radius: 8px;
+        padding: 25px;
+        box-shadow: 0 6px 10px rgba(0,0,0,0.07);
+        margin-bottom: 25px;
     }
     /* Estilo para os títulos */
     h1, h2, h3 {
-        color: #0d3b66; /* Azul corporativo escuro */
+        color: #0d1b2a; /* Azul quase preto para títulos */
+        font-weight: 600;
     }
     /* Estilo para os botões */
     .stButton>button {
-        background-color: #007bff; /* Azul primário */
+        background-color: #005f73; /* Verde-azulado escuro */
         color: white;
         border-radius: 8px;
         border: none;
-        padding: 10px 20px;
+        padding: 10px 24px;
+        font-weight: 500;
     }
     .stButton>button:hover {
-        background-color: #0056b3; /* Azul mais escuro */
+        background-color: #0a9396; /* Tom mais claro no hover */
     }
     /* Estilo para a barra lateral */
     [data-testid="stSidebar"] {
-        background-color: #e9ecef; /* Cinza claro */
+        background-color: #d6e2f0; /* Azul-acinzentado claro */
+    }
+    [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {
+        color: #0d1b2a;
     }
     [data-testid="stSidebar"] .stMarkdown p, [data-testid="stSidebar"] label {
-        color: #212529 !important; /* Texto escuro para contraste */
+        color: #343a40 !important; /* Texto escuro para contraste */
+    }
+    /* Cores do relatório */
+    .stAlert[data-baseweb="alert"] > div {
+        border-radius: 8px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -75,7 +84,7 @@ def load_data(uploaded_file):
             if line.strip():
                 cells = [cell.strip() for cell in line.split('\t')]
                 while len(cells) < len(header):
-                    cells.append('') # Adiciona células vazias se a linha for mais curta
+                    cells.append('')
                 parsed_data.append(cells[:len(header)])
         
         df = pd.DataFrame(parsed_data, columns=header)
@@ -94,19 +103,17 @@ def process_codes(df):
         return pd.DataFrame(), []
 
     report_log = []
-    df['CÓDIGO FINAL'] = ''
+    df['CÓDIGO FINAL'] = df['Nº DA PEÇA'] # Inicia com o código original
     
     sequentials = {}
     group_pattern = re.compile(r'(\d{3})')
-    # Regex aprimorada para códigos de fabricação (mais flexível)
-    manufactured_pattern = re.compile(r'^\d{2}-\d{4}-\d{4}-.*')
 
+    # 1. Pré-scan para encontrar os sequenciais mais altos já existentes
     for index, row in df.iterrows():
-        if row['PROCESSO'] == 'Comercial' and re.match(r'^\d{3}-\d{4}$', str(row['Nº DA PEÇA'])):
+        if re.match(r'^\d{3}-\d{4}$', str(row['Nº DA PEÇA'])):
              try:
                 parts = str(row['Nº DA PEÇA']).split('-')
-                group = parts[0]
-                seq = int(parts[1])
+                group, seq = parts[0], int(parts[1])
                 if group not in sequentials or seq > sequentials[group]:
                     sequentials[group] = seq
              except (ValueError, IndexError):
@@ -114,15 +121,12 @@ def process_codes(df):
 
     report_log.append(f"Sequenciais iniciais detectados: {sequentials if sequentials else 'Nenhum'}")
 
+    # 2. Loop principal para gerar novos códigos
     for index, row in df.iterrows():
-        is_manufactured = bool(manufactured_pattern.match(str(row['Nº DA PEÇA'])))
-        
-        if is_manufactured or (row['PROCESSO'] != 'Comercial' and row['PROCESSO']):
-            df.loc[index, 'CÓDIGO FINAL'] = row['Nº DA PEÇA']
-        
-        elif row['PROCESSO'] == 'Comercial':
+        # Apenas processa itens marcados como 'Comercial'
+        if row['PROCESSO'] == 'Comercial':
+            # Se já tem um código comercial válido, pula para o próximo
             if re.match(r'^\d{3}-\d{4}$', str(row['Nº DA PEÇA'])):
-                 df.loc[index, 'CÓDIGO FINAL'] = row['Nº DA PEÇA']
                  continue
 
             group_match = group_pattern.search(str(row['GRUPO DE PRODUTO']))
@@ -138,15 +142,13 @@ def process_codes(df):
             else:
                 df.loc[index, 'CÓDIGO FINAL'] = 'ERRO: GRUPO AUSENTE'
                 report_log.append(f"⚠️ Alerta: Item '{row['TÍTULO']}' é 'Comercial' mas a coluna 'GRUPO DE PRODUTO' está vazia ou inválida. Código não gerado.")
-        else: # Casos não classificados
-            df.loc[index, 'CÓDIGO FINAL'] = row['Nº DA PEÇA']
 
-
+    # 3. Organização final do DataFrame
     df_fabricado = df[df['PROCESSO'] != 'Comercial']
     df_comercial = df[df['PROCESSO'] == 'Comercial']
     
     df_final = pd.concat([
-        df_fabricado.sort_values(by='CÓDIGO FINAL'), 
+        df_fabricado.sort_values(by='Nº DA PEÇA'), 
         df_comercial.sort_values(by='CÓDIGO FINAL')
     ], ignore_index=True)
     
@@ -167,7 +169,7 @@ def to_excel(df):
 # --- INTERFACE DA APLICAÇÃO ---
 
 with st.sidebar:
-    st.image("https://images.unsplash.com/photo-1581092921462-63f1c1187449?q=80&w=1935&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D", use_column_width=True)
+    st.image("https://images.unsplash.com/photo-1581092921462-63f1c1187449?q=80&w=1935&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG9tby1wYWdlfHx8fGVufDB8fHx8fA%3D%3D", use_column_width=True)
     st.header("1. Carregar Arquivo")
     uploaded_file = st.file_uploader(
         "Selecione o arquivo TXT da lista de peças:",
@@ -209,11 +211,11 @@ else:
                 with col2:
                     sort_option = st.radio(
                         "Classificar tabela por:",
-                        ("Padrão (Código Final)", "GRUPO DE PRODUTO", "PROCESSO"),
+                        ("Padrão (Fabricado/Comercial)", "GRUPO DE PRODUTO", "PROCESSO"),
                         key="sort"
                     )
 
-                if sort_option == "Padrão (Código Final)":
+                if sort_option == "Padrão (Fabricado/Comercial)":
                     df_display = df_processed
                 else:
                     df_display = df_processed.sort_values(by=sort_option).reset_index(drop=True)
