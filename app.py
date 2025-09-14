@@ -172,7 +172,8 @@ def process_codes(df, state_file):
         report_log.append(f"ℹ️ Nenhum arquivo de estado ('{state_file}') encontrado. Novos sequenciais serão iniciados.")
         
     group_pattern = re.compile(r'(\d{3})')
-    manufactured_pattern = re.compile(r'^\d{2}-\d{4}-\d{4}-\d{2}$')
+    # **CORREÇÃO**: Padrão de fabricado mais flexível para aceitar variações na revisão
+    manufactured_pattern = re.compile(r'^\d{2}-\d{4}-\d{4}-.*')
     commercial_pattern = re.compile(r'^\d{3}-\d{4}$')
 
     for index, row in df.iterrows():
@@ -190,7 +191,6 @@ def process_codes(df, state_file):
              try:
                 parts = numero_peca.split('-')
                 group, seq = parts[0], int(parts[1])
-                # Atualiza o sequencial se encontrar um maior no arquivo de entrada
                 if group not in sequentials or seq > sequentials.get(group, 0):
                     sequentials[group] = seq
              except (ValueError, IndexError):
@@ -255,7 +255,7 @@ def to_excel(df):
 # --- INTERFACE DA APLICAÇÃO ---
 
 with st.sidebar:
-    st.image("https://images.unsplash.com/photo-1581092921462-63f1c1187449?q=80&w=1935&auto-format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG9tby1wYWdlfHx8fGVufDB8fHx8fA%3D%3D", use_column_width='auto')
+    st.image("https://images.unsplash.com/photo-1581092921462-63f1c1187449?q=80&w=1935&auto-format&fit-crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG9tby1wYWdlfHx8fGVufDB8fHx8fA%3D%3D", use_column_width='auto')
     st.header("1. Carregar Arquivo")
     uploaded_file = st.file_uploader(
         "Selecione o arquivo TXT da lista de peças:",
