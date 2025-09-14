@@ -249,16 +249,3 @@ else:
                     )
                 st.markdown('</div>', unsafe_allow_html=True)
 
-```
-
-### Passo 2: Como Executar a Aplicação
-Siga as instruções da nossa conversa anterior:
-
-1.  **Instale as bibliotecas:** Se ainda não tiver, abra o terminal e rode:
-    ```bash
-    pip install streamlit pandas xlsxwriter
-    ```
-2.  **Execute o App:** Navegue até a pasta onde salvou o `app.py` e rode:
-    ```bash
-    streamlit run app.py
-    
