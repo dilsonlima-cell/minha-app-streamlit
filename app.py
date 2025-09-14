@@ -7,7 +7,7 @@ import os
 from datetime import datetime
 from contextlib import contextmanager
 
-# --- PALETA DE CORES (a última que definimos) ---
+# --- PALETA DE CORES ---
 COLOR_PALETTE = {
     "darkest_green": "#255000",
     "dark_green": "#588100",
@@ -22,7 +22,7 @@ COLOR_PALETTE = {
 # --- CONFIGURAÇÃO DA PÁGINA E ESTILO ---
 st.set_page_config(layout="wide", page_title="SolidWorks BOM Processor")
 
-# Estilo CSS moderno que criamos
+# Estilo CSS
 st.markdown(f"""
 <style>
     .stApp {{ background-color: {COLOR_PALETTE["very_light_green"]}; color: {COLOR_PALETTE["darkest_green"]}; }}
@@ -169,6 +169,7 @@ def process_codes(df, state_file):
     for col in df.select_dtypes(include=['object']):
         df[col] = df[col].astype(str).str.upper()
 
+    # --- LÓGICA DE HIERARQUIA PAI/FILHO (CONFORME SOLICITADO) ---
     df['Nº DO ITEM'] = df['Nº DO ITEM'].astype(str).str.strip()
     code_map = pd.Series(df['CÓDIGO FINAL'].values, index=df['Nº DO ITEM']).to_dict()
     def find_parent_code(item_id):
@@ -182,6 +183,7 @@ def process_codes(df, state_file):
     
     parents_found = df['CÓDIGO PAI'].astype(bool).sum()
     report_log.append(f"Hierarquia processada: {parents_found} itens receberam um Código Pai.")
+    # --- FIM DO BLOCO DE HIERARQUIA ---
 
     final_order = [col for col in ['Nº DO ITEM', 'TÍTULO', 'Nº DA PEÇA', 'PROCESSO', 'GRUPO DE PRODUTO', 'MATERIAL', 'DIMENSÕES', 'CÓDIGO FINAL', 'CÓDIGO PAI'] if col in df.columns]
     other_cols = [col for col in df.columns if col not in final_order]
@@ -222,7 +224,7 @@ with card_container():
 
 if uploaded_file:
     st.session_state.df_raw, msg = load_data(uploaded_file)
-    st.session_state.df_proc = None # Reseta o resultado processado ao carregar novo arquivo
+    st.session_state.df_proc = None
     
     if st.session_state.df_raw is not None:
         with st.expander("👁️ Pré-visualização dos Dados Carregados (verifique a coluna 'Nº DO ITEM')"):
