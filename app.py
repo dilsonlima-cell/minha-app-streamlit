@@ -7,47 +7,49 @@ from datetime import datetime
 # --- CONFIGURAÇÃO DA PÁGINA E ESTILO ---
 st.set_page_config(layout="wide", page_title="Gerador de Códigos de Itens")
 
-# Estilo CSS com alto contraste e visual aprimorado
+# Estilo CSS com a nova paleta (Pastel, Palha, Musgo Verde)
 st.markdown("""
 <style>
     /* Cor de fundo principal */
     .stApp {
-        background-color: #e9ecef; /* Cinza de fundo mais escuro */
+        background-color: #f4f1ea; /* Tom de palha/pastel */
     }
     /* Estilo para os cards */
     .card {
         background-color: #ffffff;
+        border: 1px solid #ddd;
         border-radius: 8px;
         padding: 25px;
-        box-shadow: 0 6px 10px rgba(0,0,0,0.07);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.04);
         margin-bottom: 25px;
     }
     /* Estilo para os títulos */
     h1, h2, h3 {
-        color: #0d1b2a; /* Azul quase preto para títulos */
+        color: #3d403a; /* Cinza escuro, quase preto */
         font-weight: 600;
     }
     /* Estilo para os botões */
     .stButton>button {
-        background-color: #005f73; /* Verde-azulado escuro */
+        background-color: #6b8e23; /* Verde musgo (olivedrab) */
         color: white;
         border-radius: 8px;
         border: none;
         padding: 10px 24px;
         font-weight: 500;
+        border-bottom: 2px solid #556b2f; /* Sombra sutil */
     }
     .stButton>button:hover {
-        background-color: #0a9396; /* Tom mais claro no hover */
+        background-color: #556b2f; /* Tom mais escuro no hover */
     }
     /* Estilo para a barra lateral */
     [data-testid="stSidebar"] {
-        background-color: #d6e2f0; /* Azul-acinzentado claro */
+        background-color: #e8e8e4; /* Pastel complementar */
     }
     [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {
-        color: #0d1b2a;
+        color: #3d403a;
     }
     [data-testid="stSidebar"] .stMarkdown p, [data-testid="stSidebar"] label {
-        color: #343a40 !important; /* Texto escuro para contraste */
+        color: #212529 !important; /* Texto escuro para contraste */
     }
     /* Cores do relatório */
     .stAlert[data-baseweb="alert"] > div {
@@ -79,6 +81,12 @@ def load_data(uploaded_file):
         header = [h.strip() for h in content[header_line_index].split('\t')]
         data_lines = content[:header_line_index]
 
+        # Validação de colunas essenciais
+        required_cols = ['Nº DA PEÇA', 'PROCESSO', 'GRUPO DE PRODUTO', 'TÍTULO']
+        for col in required_cols:
+            if col not in header:
+                return None, f"Erro: A coluna obrigatória '{col}' não foi encontrada no cabeçalho do arquivo."
+
         parsed_data = []
         for line in data_lines:
             if line.strip():
@@ -103,12 +111,11 @@ def process_codes(df):
         return pd.DataFrame(), []
 
     report_log = []
-    df['CÓDIGO FINAL'] = df['Nº DA PEÇA'] # Inicia com o código original
+    df['CÓDIGO FINAL'] = df['Nº DA PEÇA']
     
     sequentials = {}
     group_pattern = re.compile(r'(\d{3})')
 
-    # 1. Pré-scan para encontrar os sequenciais mais altos já existentes
     for index, row in df.iterrows():
         if re.match(r'^\d{3}-\d{4}$', str(row['Nº DA PEÇA'])):
              try:
@@ -121,11 +128,8 @@ def process_codes(df):
 
     report_log.append(f"Sequenciais iniciais detectados: {sequentials if sequentials else 'Nenhum'}")
 
-    # 2. Loop principal para gerar novos códigos
     for index, row in df.iterrows():
-        # Apenas processa itens marcados como 'Comercial'
         if row['PROCESSO'] == 'Comercial':
-            # Se já tem um código comercial válido, pula para o próximo
             if re.match(r'^\d{3}-\d{4}$', str(row['Nº DA PEÇA'])):
                  continue
 
@@ -143,7 +147,6 @@ def process_codes(df):
                 df.loc[index, 'CÓDIGO FINAL'] = 'ERRO: GRUPO AUSENTE'
                 report_log.append(f"⚠️ Alerta: Item '{row['TÍTULO']}' é 'Comercial' mas a coluna 'GRUPO DE PRODUTO' está vazia ou inválida. Código não gerado.")
 
-    # 3. Organização final do DataFrame
     df_fabricado = df[df['PROCESSO'] != 'Comercial']
     df_comercial = df[df['PROCESSO'] == 'Comercial']
     
@@ -169,7 +172,7 @@ def to_excel(df):
 # --- INTERFACE DA APLICAÇÃO ---
 
 with st.sidebar:
-    st.image("https://images.unsplash.com/photo-1581092921462-63f1c1187449?q=80&w=1935&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG9tby1wYWdlfHx8fGVufDB8fHx8fA%3D%3D", use_column_width=True)
+    st.image("https://images.unsplash.com/photo-1581092921462-63f1c1187449?q=80&w=1935&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG9tby1wYWdlfHx8fGVufDB8fHx8fA%3D%3D", use_column_width='auto')
     st.header("1. Carregar Arquivo")
     uploaded_file = st.file_uploader(
         "Selecione o arquivo TXT da lista de peças:",
@@ -183,63 +186,66 @@ st.write("Esta aplicação automatiza a codificação de itens comerciais com ba
 if uploaded_file is None:
     st.info("Aguardando o upload do arquivo na barra lateral...")
 else:
-    with st.spinner("Lendo e processando o arquivo... Por favor, aguarde."):
-        df_raw, load_message = load_data(uploaded_file)
-        
-        if df_raw is None:
-            st.error(f"❌ {load_message}")
-        else:
-            df_processed, report = process_codes(df_raw.copy())
+    try:
+        with st.spinner("Lendo e processando o arquivo... Por favor, aguarde."):
+            df_raw, load_message = load_data(uploaded_file)
             
-            with st.container():
-                st.markdown('<div class="card">', unsafe_allow_html=True)
-                with st.expander("📄 Relatório de Processamento", expanded=True):
-                    for log in report:
-                        if "✔️" in log or "✅" in log:
-                            st.success(log)
-                        elif "⚠️" in log:
-                            st.warning(log)
-                        else:
-                            st.info(log)
-                st.markdown('</div>', unsafe_allow_html=True)
+            if df_raw is None:
+                st.error(f"❌ {load_message}")
+            else:
+                df_processed, report = process_codes(df_raw.copy())
+                
+                with st.container():
+                    st.markdown('<div class="card">', unsafe_allow_html=True)
+                    with st.expander("📄 Relatório de Processamento", expanded=True):
+                        for log in report:
+                            if "✔️" in log or "✅" in log:
+                                st.success(log)
+                            elif "⚠️" in log:
+                                st.warning(log)
+                            else:
+                                st.info(log)
+                    st.markdown('</div>', unsafe_allow_html=True)
 
-            with st.container():
-                st.markdown('<div class="card">', unsafe_allow_html=True)
-                st.header("Lista de Peças Atualizada")
-                
-                col1, col2 = st.columns([0.7, 0.3])
-                with col2:
-                    sort_option = st.radio(
-                        "Classificar tabela por:",
-                        ("Padrão (Fabricado/Comercial)", "GRUPO DE PRODUTO", "PROCESSO"),
-                        key="sort"
-                    )
+                with st.container():
+                    st.markdown('<div class="card">', unsafe_allow_html=True)
+                    st.header("Lista de Peças Atualizada")
+                    
+                    _, col2 = st.columns([0.7, 0.3])
+                    with col2:
+                        sort_option = st.radio(
+                            "Classificar tabela por:",
+                            ("Padrão (Fabricado/Comercial)", "GRUPO DE PRODUTO", "PROCESSO"),
+                            key="sort"
+                        )
 
-                if sort_option == "Padrão (Fabricado/Comercial)":
-                    df_display = df_processed
-                else:
-                    df_display = df_processed.sort_values(by=sort_option).reset_index(drop=True)
+                    if sort_option == "Padrão (Fabricado/Comercial)":
+                        df_display = df_processed
+                    else:
+                        df_display = df_processed.sort_values(by=sort_option).reset_index(drop=True)
 
-                st.dataframe(df_display, use_container_width=True)
-                
-                st.subheader("2. Exportar Resultados")
-                
-                export_cols = st.columns(2)
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                
-                with export_cols[0]:
-                    st.download_button(
-                        label="📥 Exportar para Excel (.xlsx)",
-                        data=to_excel(df_display),
-                        file_name=f'lista_codificada_{timestamp}.xlsx',
-                        mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-                    )
-                with export_cols[1]:
-                    st.download_button(
-                        label="📥 Exportar para CSV (.csv)",
-                        data=df_display.to_csv(index=False).encode('utf-8'),
-                        file_name=f'lista_codificada_{timestamp}.csv',
-                        mime='text/csv'
-                    )
-                st.markdown('</div>', unsafe_allow_html=True)
+                    st.dataframe(df_display, use_container_width=True)
+                    
+                    st.subheader("2. Exportar Resultados")
+                    
+                    export_cols = st.columns(2)
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    
+                    with export_cols[0]:
+                        st.download_button(
+                            label="📥 Exportar para Excel (.xlsx)",
+                            data=to_excel(df_display),
+                            file_name=f'lista_codificada_{timestamp}.xlsx',
+                            mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                        )
+                    with export_cols[1]:
+                        st.download_button(
+                            label="📥 Exportar para CSV (.csv)",
+                            data=df_display.to_csv(index=False).encode('utf-8'),
+                            file_name=f'lista_codificada_{timestamp}.csv',
+                            mime='text/csv'
+                        )
+                    st.markdown('</div>', unsafe_allow_html=True)
+    except Exception as e:
+        st.error(f"Ocorreu um erro inesperado durante o processamento: {e}")
 
