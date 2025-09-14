@@ -7,49 +7,54 @@ from datetime import datetime
 # --- CONFIGURAÇÃO DA PÁGINA E ESTILO ---
 st.set_page_config(layout="wide", page_title="Gerador de Códigos de Itens")
 
-# Estilo CSS com a nova paleta (Pastel, Palha, Musgo Verde)
+# Estilo CSS com a nova paleta (Pastel, Azul e Preto)
 st.markdown("""
 <style>
     /* Cor de fundo principal */
     .stApp {
-        background-color: #f4f1ea; /* Tom de palha/pastel */
+        background-color: #fdfaf6; /* Tom pastel muito claro (off-white) */
     }
     /* Estilo para os cards */
     .card {
         background-color: #ffffff;
-        border: 1px solid #ddd;
-        border-radius: 8px;
+        border: 1px solid #e0e0e0;
+        border-radius: 10px;
         padding: 25px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.04);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
         margin-bottom: 25px;
     }
     /* Estilo para os títulos */
     h1, h2, h3 {
-        color: #3d403a; /* Cinza escuro, quase preto */
-        font-weight: 600;
+        color: #004e98; /* Azul escuro para títulos */
+        font-weight: 700;
+    }
+    /* Cor do texto principal */
+    body, p, label, .stMarkdown {
+        color: #000000 !important; /* Texto preto */
     }
     /* Estilo para os botões */
     .stButton>button {
-        background-color: #6b8e23; /* Verde musgo (olivedrab) */
+        background-color: #0077b6; /* Azul médio, mais escuro que o fundo */
         color: white;
         border-radius: 8px;
         border: none;
         padding: 10px 24px;
         font-weight: 500;
-        border-bottom: 2px solid #556b2f; /* Sombra sutil */
+        border-bottom: 2px solid #005f8c; /* Sombra sutil */
     }
     .stButton>button:hover {
-        background-color: #556b2f; /* Tom mais escuro no hover */
+        background-color: #005f8c; /* Tom mais escuro no hover */
     }
     /* Estilo para a barra lateral */
     [data-testid="stSidebar"] {
-        background-color: #e8e8e4; /* Pastel complementar */
+        background-color: #f7f4ed; /* Tom pastel complementar */
+        border-right: 1px solid #e0e0e0;
     }
     [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {
-        color: #3d403a;
+        color: #004e98;
     }
     [data-testid="stSidebar"] .stMarkdown p, [data-testid="stSidebar"] label {
-        color: #212529 !important; /* Texto escuro para contraste */
+        color: #000000 !important; /* Texto preto para contraste */
     }
     /* Cores do relatório */
     .stAlert[data-baseweb="alert"] > div {
@@ -229,7 +234,7 @@ else:
                     st.subheader("2. Exportar Resultados")
                     
                     export_cols = st.columns(2)
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    timestamp = datetime.now().strftime("%Y%d%m_%H%M%S")
                     
                     with export_cols[0]:
                         st.download_button(
