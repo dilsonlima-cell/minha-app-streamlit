@@ -218,23 +218,28 @@ def process_codes(df, state_file):
             else:
                 report_log.append(f"⚠️ Alerta: Item '{row['TÍTULO']}' é 'COMERCIAL' mas não possui 'GRUPO DE PRODUTO'. Código não gerado (NULO).")
 
-    # --- NOVA LÓGICA DE HIERARQUIA PAI-FILHO ---
-    df['CÓDIGO PAI'] = ''
-    parent_codes = {}
-    # Primeira passagem: mapeia o código final de todos os itens pais
-    for index, row in df.iterrows():
-        item_num = str(row['Nº DO ITEM'])
-        if '.' not in item_num: # É um item pai (ex: '1', '2')
-            parent_codes[item_num] = row['CÓDIGO FINAL']
-    
-    # Segunda passagem: preenche a coluna 'CÓDIGO PAI' para os filhos
-    for index, row in df.iterrows():
-        item_num = str(row['Nº DO ITEM'])
-        if '.' in item_num: # É um item filho (ex: '1.1', '2.1.1')
-            parent_num = item_num.split('.')[0]
-            if parent_num in parent_codes:
-                df.loc[index, 'CÓDIGO PAI'] = parent_codes[parent_num]
+    # --- LÓGICA DE HIERARQUIA PAI-FILHO (RECONSTRUÍDA) ---
+    # 1. Cria um mapa de todos os códigos finais para consulta rápida.
+    # Garante que a coluna 'Nº DO ITEM' seja do tipo string para o mapeamento.
+    df['Nº DO ITEM'] = df['Nº DO ITEM'].astype(str).str.strip()
+    code_map = pd.Series(df['CÓDIGO FINAL'].values, index=df['Nº DO ITEM']).to_dict()
+
+    # 2. Função para encontrar o ID do pai imediato.
+    def get_immediate_parent_id(item_id):
+        parts = str(item_id).strip().split('.')
+        if len(parts) <= 1:
+            return None # É um item de nível superior, não tem pai.
+        parent_id = '.'.join(parts[:-1])
+        return parent_id
+
+    # 3. Aplica a função para encontrar o ID do pai de cada item.
+    df['parent_id'] = df['Nº DO ITEM'].apply(get_immediate_parent_id)
+
+    # 4. Usa o mapa para traduzir o ID do pai para o CÓDIGO FINAL do pai.
+    df['CÓDIGO PAI'] = df['parent_id'].map(code_map).fillna('')
+    df = df.drop(columns=['parent_id']) # Remove a coluna auxiliar.
     report_log.append("Hierarquia pai-filho processada e coluna 'CÓDIGO PAI' preenchida.")
+
 
     def get_code_type(row):
         code = str(row['CÓDIGO FINAL'])
@@ -249,7 +254,7 @@ def process_codes(df, state_file):
     df_final = df.sort_values(by=['TIPO_CODIGO', 'CÓDIGO FINAL']).reset_index(drop=True)
     df_final = df_final.drop(columns=['TIPO_CODIGO'])
 
-    # --- NOVA LÓGICA DE ORDENAÇÃO DE COLUNAS ---
+    # --- LÓGICA DE ORDENAÇÃO DE COLUNAS ---
     cols = df_final.columns.tolist()
     if 'CÓDIGO PAI' in cols:
         cols.pop(cols.index('CÓDIGO PAI'))
@@ -281,7 +286,7 @@ def to_excel(df):
 # --- INTERFACE DA APLICAÇÃO ---
 
 with st.sidebar:
-    st.image("https://images.unsplash.com/photo-1581092921462-63f1c1187449?q=80&w=1935&auto-format&fit-crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG9tby1wYWdlfHx8fGVufDB8fHx8fA%3D%3D", use_column_width='auto')
+    st.image("https://images.unsplash.com/photo-1581092921462-63f1c1187449?q=80&w=1935&auto-format&fit-crop&ixlib-rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG9tby1wYWdlfHx8fGVufDB8fHx8fA%3D%3D", use_column_width='auto')
     st.header("1. Carregar Arquivo")
     uploaded_file = st.file_uploader(
         "Selecione o arquivo TXT da lista de peças:",
@@ -345,7 +350,7 @@ else:
                     st.subheader("2. Exportar Resultados")
                     
                     export_cols = st.columns(2)
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    timestamp = datetime.now().strftime("%Ym%d_%H%M%S")
                     
                     with export_cols[0]:
                         st.download_button(
