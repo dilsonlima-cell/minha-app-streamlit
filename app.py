@@ -7,7 +7,7 @@ from datetime import datetime
 # --- CONFIGURAÇÃO DA PÁGINA E ESTILO ---
 st.set_page_config(layout="wide", page_title="Gerador de Códigos de Itens")
 
-# Estilo CSS final com paleta refinada e sem fundos pretos
+# Estilo CSS com títulos destacados e maior robustez visual
 st.markdown("""
 <style>
     /* Cor de fundo principal */
@@ -23,14 +23,19 @@ st.markdown("""
         box-shadow: 0 4px 6px rgba(0,0,0,0.05);
         margin-bottom: 25px;
     }
-    /* Estilo para os títulos */
+    /* Estilo para os títulos com maior destaque */
     h1 {
         color: #0a2540; /* Azul-marinho escuro para o título principal */
         font-weight: 700;
+        border-bottom: 3px solid #0a2540;
+        padding-bottom: 10px;
     }
     h2, h3 {
-        color: #004e98; /* Azul escuro para subtítulos */
+        color: #2a6f97; /* Azul mais vibrante para subtítulos */
         font-weight: 700;
+        border-bottom: 2px solid #e0e0e0;
+        padding-bottom: 8px;
+        margin-top: 20px;
     }
     /* Cor do texto principal */
     body, p, label, .stMarkdown {
@@ -55,7 +60,8 @@ st.markdown("""
         border-right: 1px solid #e0e0e0;
     }
     [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {
-        color: #004e98;
+        color: #2a6f97;
+        border-bottom: none; /* Sem borda na barra lateral */
     }
     [data-testid="stSidebar"] .stMarkdown p, [data-testid="stSidebar"] label {
         color: #000000 !important; /* Texto preto para contraste */
@@ -108,12 +114,6 @@ def load_data(uploaded_file):
         header = [h.strip() for h in content[header_line_index].split('\t')]
         data_lines = content[:header_line_index]
 
-        # Validação de colunas essenciais
-        required_cols = ['Nº DA PEÇA', 'PROCESSO', 'GRUPO DE PRODUTO', 'TÍTULO']
-        for col in required_cols:
-            if col not in header:
-                return None, f"Erro: A coluna obrigatória '{col}' não foi encontrada no cabeçalho do arquivo."
-
         parsed_data = []
         for line in data_lines:
             if line.strip():
@@ -124,6 +124,12 @@ def load_data(uploaded_file):
         
         df = pd.DataFrame(parsed_data, columns=header)
         df = df.iloc[::-1].reset_index(drop=True)
+
+        # **NOVO**: Garante que colunas essenciais existam, mesmo que vazias
+        required_cols = ['Nº DA PEÇA', 'PROCESSO', 'GRUPO DE PRODUTO', 'TÍTULO']
+        for col in required_cols:
+            if col not in df.columns:
+                df[col] = '' # Cria a coluna com valores vazios se não existir
         
         if 'QTD.' in df.columns:
             df['QTD.'] = pd.to_numeric(df['QTD.'], errors='coerce').fillna(0)
@@ -199,7 +205,7 @@ def to_excel(df):
 # --- INTERFACE DA APLICAÇÃO ---
 
 with st.sidebar:
-    st.image("https://images.unsplash.com/photo-1581092921462-63f1c1187449?q=80&w=1935&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG9tby1wYWdlfHx8fGVufDB8fHx8fA%3D%3D", use_column_width='auto')
+    st.image("https://images.unsplash.com/photo-1581092921462-63f1c1187449?q=80&w=1935&auto-format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG9tby1wYWdlfHx8fGVufDB8fHx8fA%3D%3D", use_column_width='auto')
     st.header("1. Carregar Arquivo")
     uploaded_file = st.file_uploader(
         "Selecione o arquivo TXT da lista de peças:",
