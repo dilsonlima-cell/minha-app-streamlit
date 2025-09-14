@@ -9,8 +9,90 @@ from datetime import datetime
 # --- CONFIGURAÇÃO DA PÁGINA E ESTILO ---
 st.set_page_config(layout="wide", page_title="Gerador de Códigos de Itens")
 
-# Estilo CSS (mesmo que você já tinha)
-st.markdown(""" ... (CSS IGUAL AO SEU, omiti aqui para encurtar) ... """, unsafe_allow_html=True)
+# Estilo CSS atualizado com base no novo layout
+st.markdown("""
+<style>
+    /* Cor de fundo principal */
+    .stApp {
+        background-color: #f8f9fa; /* Cinza muito claro */
+    }
+    /* Estilo para os cards */
+    .card {
+        background-color: #ffffff;
+        border: 1px solid #dee2e6;
+        border-radius: 10px;
+        padding: 25px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+        margin-bottom: 25px;
+    }
+    /* Estilo para os títulos */
+    h1 {
+        color: #0d3b66; /* Azul corporativo escuro */
+        font-weight: 700;
+        padding-bottom: 10px;
+    }
+    h2, h3 {
+        color: #0d3b66; /* Azul corporativo escuro */
+        font-weight: 600;
+        padding-bottom: 8px;
+        margin-top: 20px;
+    }
+    /* Cor do texto principal */
+    body, p, label, .stMarkdown {
+        color: #212529 !important; /* Texto preto/cinza escuro */
+    }
+    /* Estilo para os botões */
+    .stButton>button {
+        background-color: #007bff; /* Azul primário */
+        color: white;
+        border-radius: 8px;
+        border: none;
+        padding: 10px 24px;
+        font-weight: 500;
+    }
+    .stButton>button:hover {
+        background-color: #0056b3; /* Tom mais escuro no hover */
+    }
+    /* Estilo para a barra lateral */
+    [data-testid="stSidebar"] {
+        background-color: #e9ecef; /* Cinza claro */
+        border-right: 1px solid #dee2e6;
+    }
+    [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {
+        color: #0d3b66;
+    }
+    [data-testid="stSidebar"] .stMarkdown p, [data-testid="stSidebar"] label {
+        color: #212529 !important; /* Texto escuro para contraste */
+    }
+    /* Cor do texto do expander (Relatório de Processamento) */
+    .st-emotion-cache-115fcme summary {
+        color: #0d3b66 !important;
+        font-weight: 600;
+    }
+    /* Cores do relatório */
+    .stAlert[data-baseweb="alert"] > div {
+        border-radius: 8px;
+    }
+
+    /* FORÇAR TEMA CLARO NA TABELA (DATAFRAME) */
+    [data-testid="stDataFrame"] {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+    }
+    [data-testid="stDataFrame"] .col-header {
+        background-color: #e9ecef !important; /* Cinza claro */
+    }
+    [data-testid="stDataFrame"] .col-header-cell {
+        color: #212529 !important;
+        font-weight: 600;
+    }
+    [data-testid="stDataFrame"] .data-cell {
+        background-color: #ffffff !important;
+        color: #212529 !important;
+        border-color: #dee2e6 !important;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # --- FUNÇÕES AUXILIARES ---
 
@@ -36,6 +118,10 @@ def load_data(uploaded_file):
     try:
         if uploaded_file.name.endswith(".xlsx"):
             df = pd.read_excel(uploaded_file)
+            # Garante que colunas essenciais existam
+            for col in ['Nº DA PEÇA','PROCESSO','GRUPO DE PRODUTO','TÍTULO', 'Nº DO ITEM']:
+                if col not in df.columns:
+                    df[col] = ''
             return df, "Arquivo XLSX lido com sucesso."
 
         # Leitura de TXT (mesma lógica anterior, mas mais tolerante)
@@ -63,7 +149,7 @@ def load_data(uploaded_file):
         df = pd.DataFrame(parsed_data, columns=header)
         df = df.iloc[::-1].reset_index(drop=True)
 
-        for col in ['Nº DA PEÇA','PROCESSO','GRUPO DE PRODUTO','TÍTULO']:
+        for col in ['Nº DA PEÇA','PROCESSO','GRUPO DE PRODUTO','TÍTULO', 'Nº DO ITEM']:
             if col not in df.columns:
                 df[col] = ''
 
@@ -140,6 +226,16 @@ def process_codes(df, state_file):
 
     df['CÓDIGO PAI'] = df['Nº DO ITEM'].apply(lambda x: find_parent_code(x) or "")
     report_log.append("Hierarquia pai-filho processada.")
+    
+    # Reordenar colunas
+    cols = df.columns.tolist()
+    if 'CÓDIGO PAI' in cols:
+        cols.pop(cols.index('CÓDIGO PAI'))
+        if 'CÓDIGO FINAL' in cols:
+            final_code_index = cols.index('CÓDIGO FINAL')
+            cols.insert(final_code_index + 1, 'CÓDIGO PAI')
+            df = df[cols]
+
 
     # Ordenação lógica
     def get_tipo(row):
@@ -155,6 +251,9 @@ def process_codes(df, state_file):
 
     save_sequentials(state_file, sequentials)
     report_log.append(f"💾 Sequenciais salvos em {state_file}")
+    
+    num_codes_generated = len([log for log in report_log if '✔️' in log])
+    report_log.insert(0, f"✅ Processamento concluído. {num_codes_generated} novos códigos comerciais foram gerados.")
 
     return df, report_log
 
@@ -163,7 +262,8 @@ def to_excel(df):
     out = io.BytesIO()
     with pd.ExcelWriter(out, engine='xlsxwriter') as w:
         df.to_excel(w, index=False, sheet_name='Lista de Peças')
-    return out.getvalue()
+    processed_data = out.getvalue()
+    return processed_data
 
 # --- INTERFACE ---
 with st.sidebar:
@@ -173,11 +273,13 @@ with st.sidebar:
     st.info("TXT deve ser separado por tabulação com cabeçalho na última linha.", icon="ℹ️")
     st.header("2. Persistência de Códigos")
     state_file = st.text_input("Nome do arquivo de estado:", "estado_sequenciais.json")
+    st.info("Salva os contadores sequenciais para evitar códigos duplicados.", icon="💾")
 
 st.title("⚙️ Gerador de Códigos para Itens Comerciais")
+st.write("Esta aplicação automatiza a codificação de itens com base na sua lista de peças.")
 
 if not uploaded_file:
-    st.info("Aguardando upload na barra lateral...")
+    st.info("Aguardando upload de um arquivo na barra lateral...")
 else:
     try:
         with st.spinner("Processando..."):
@@ -187,23 +289,32 @@ else:
             else:
                 df_proc, report = process_codes(df_raw.copy(), state_file)
 
-                with st.expander("📄 Relatório de Processamento", expanded=True):
-                    for log in report:
-                        if "✔️" in log or "✅" in log: st.success(log)
-                        elif "⚠️" in log: st.warning(log)
-                        else: st.info(log)
+                # Card de Relatório
+                with st.container():
+                    st.markdown('<div class="card">', unsafe_allow_html=True)
+                    with st.expander("📄 Relatório de Processamento", expanded=True):
+                        for log in report:
+                            if "✔️" in log or "✅" in log: st.success(log)
+                            elif "⚠️" in log: st.warning(log)
+                            else: st.info(log)
+                    st.markdown('</div>', unsafe_allow_html=True)
+                
+                # Card da Tabela e Exportação
+                with st.container():
+                    st.markdown('<div class="card">', unsafe_allow_html=True)
+                    st.header("Lista de Peças Atualizada")
+                    sort_option = st.radio("Classificar por:", ("Padrão","GRUPO DE PRODUTO","PROCESSO"), horizontal=True)
+                    df_show = df_proc if sort_option=="Padrão" else df_proc.sort_values(by=sort_option, kind='mergesort').reset_index(drop=True)
+                    st.dataframe(df_show, use_container_width=True)
 
-                st.header("Lista de Peças Atualizada")
-                sort_option = st.radio("Classificar por:", ("Padrão","GRUPO DE PRODUTO","PROCESSO"))
-                df_show = df_proc if sort_option=="Padrão" else df_proc.sort_values(by=sort_option).reset_index(drop=True)
-                st.dataframe(df_show, use_container_width=True)
-
-                st.subheader("Exportar Resultados")
-                t = datetime.now().strftime("%Y%m%d_%H%M%S")
-                c1,c2 = st.columns(2)
-                with c1:
-                    st.download_button("📥 Excel", to_excel(df_show), f"lista_codificada_{t}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-                with c2:
-                    st.download_button("📥 CSV", df_show.to_csv(index=False).encode("utf-8"), f"lista_codificada_{t}.csv", mime="text/csv")
+                    st.subheader("Exportar Resultados")
+                    t = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    c1,c2 = st.columns(2)
+                    with c1:
+                        st.download_button("📥 Exportar para Excel", to_excel(df_show), f"lista_codificada_{t}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                    with c2:
+                        st.download_button("📥 Exportar para CSV", df_show.to_csv(index=False).encode("utf-8"), f"lista_codificada_{t}.csv", mime="text/csv")
+                    st.markdown('</div>', unsafe_allow_html=True)
     except Exception as e:
-        st.error(f"Erro: {e}")
+        st.error(f"Ocorreu um erro inesperado: {e}")
+
