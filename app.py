@@ -43,16 +43,16 @@ st.markdown("""
     }
     /* Estilo para os botões */
     .stButton>button {
-        background-color: #0077b6; /* Azul médio, mais escuro que o fundo */
+        background-color: #1A4314; /* Verde escuro da imagem */
         color: white;
         border-radius: 8px;
         border: none;
         padding: 10px 24px;
         font-weight: 500;
-        border-bottom: 2px solid #005f8c; /* Sombra sutil */
+        border-bottom: 2px solid #112B0D; /* Sombra sutil mais escura */
     }
     .stButton>button:hover {
-        background-color: #005f8c; /* Tom mais escuro no hover */
+        background-color: #235D1C; /* Tom mais claro no hover */
     }
     /* Estilo para a barra lateral */
     [data-testid="stSidebar"] {
@@ -286,4 +286,5 @@ else:
                     st.markdown('</div>', unsafe_allow_html=True)
     except Exception as e:
         st.error(f"Ocorreu um erro inesperado durante o processamento: {e}")
+
 
