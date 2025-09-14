@@ -12,7 +12,7 @@ st.markdown("""
 <style>
     /* Cor de fundo principal */
     .stApp {
-        background-color: #e9f5e9; /* Tom de verde claro */
+        background-color: #7E8C54; /* Tom de Verde Musgo */
     }
     /* Estilo para os cards */
     .card {
@@ -56,7 +56,7 @@ st.markdown("""
     }
     /* Estilo para a barra lateral */
     [data-testid="stSidebar"] {
-        background-color: #dde8dd; /* Tom verde complementar */
+        background-color: #bec5a8; /* Tom verde complementar mais claro */
         border-right: 1px solid #e0e0e0;
     }
     [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {
@@ -82,7 +82,7 @@ st.markdown("""
         border-radius: 8px;
     }
     [data-testid="stDataFrame"] .col-header {
-        background-color: #dde8dd !important;
+        background-color: #bec5a8 !important; /* Tom verde complementar mais claro */
     }
     [data-testid="stDataFrame"] .col-header-cell {
         color: #000000 !important;
@@ -286,5 +286,4 @@ else:
                     st.markdown('</div>', unsafe_allow_html=True)
     except Exception as e:
         st.error(f"Ocorreu um erro inesperado durante o processamento: {e}")
-
 
