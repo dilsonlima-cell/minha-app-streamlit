@@ -9,7 +9,7 @@ from datetime import datetime
 # --- CONFIGURAÇÃO DA PÁGINA E ESTILO ---
 st.set_page_config(layout="wide", page_title="Gerador de Códigos de Itens")
 
-# Estilo CSS refinado para corresponder à imagem de referência
+# Estilo CSS atualizado com base na nova paleta de cores
 st.markdown("""
 <style>
     /* Cor de fundo principal */
@@ -30,20 +30,19 @@ st.markdown("""
     h1 {
         color: #0d3b66; /* Azul corporativo escuro */
         font-weight: 700;
-        font-size: 2.5rem; /* Aumenta o tamanho */
-        padding-bottom: 0.3em; /* Espaçamento sutil */
+        font-size: 2.5rem;
+        padding-bottom: 0.3em;
     }
 
     /* CABEÇALHOS (st.header) E SUB-CABEÇALHOS (st.subheader) */
     h2, h3 {
         color: #0d3b66; /* Azul corporativo escuro */
         font-weight: 600;
-        border: none; /* Remove qualquer borda */
-        padding-bottom: 0px; /* Remove padding */
-        margin-top: 0px; /* Remove margem superior */
+        border: none;
+        padding-bottom: 0px;
+        margin-top: 0px;
     }
     
-    /* Garante que o H2 dentro do card tenha espaçamento */
     .card h2 {
         margin-bottom: 1rem;
     }
@@ -79,7 +78,7 @@ st.markdown("""
     .st-emotion-cache-115fcme summary {
         color: #0d3b66 !important;
         font-weight: 600;
-        font-size: 1.25rem; /* Alinha com o tamanho do H2 */
+        font-size: 1.25rem;
     }
     /* Cores do relatório */
     .stAlert[data-baseweb="alert"] > div {
