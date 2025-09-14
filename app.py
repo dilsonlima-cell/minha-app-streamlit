@@ -130,7 +130,7 @@ def load_data(uploaded_file):
         df = pd.DataFrame(parsed_data, columns=header)
         df = df.iloc[::-1].reset_index(drop=True)
 
-        # **NOVO**: Garante que colunas essenciais existam, mesmo que vazias
+        # Garante que colunas essenciais existam, mesmo que vazias
         required_cols = ['Nº DA PEÇA', 'PROCESSO', 'GRUPO DE PRODUTO', 'TÍTULO']
         for col in required_cols:
             if col not in df.columns:
@@ -149,17 +149,24 @@ def process_codes(df):
         return pd.DataFrame(), []
 
     report_log = []
-    # **NOVO**: Inicia a coluna com 'nulo' como valor padrão para todos os itens.
-    df['CÓDIGO FINAL'] = 'nulo'
-    
     sequentials = {}
     group_pattern = re.compile(r'(\d{3})')
-
-    # Define os padrões de código com base na norma
     manufactured_pattern = re.compile(r'^\d{2}-\d{4}-\d{4}-\d{2}$')
     commercial_pattern = re.compile(r'^\d{3}-\d{4}$')
 
-    # Pré-scan para encontrar os sequenciais comerciais mais altos já existentes
+    # --- NOVA LÓGICA DE CLASSIFICAÇÃO ---
+    # 1. Preenche a coluna 'PROCESSO' automaticamente
+    for index, row in df.iterrows():
+        if manufactured_pattern.match(str(row['Nº DA PEÇA'])):
+            df.loc[index, 'PROCESSO'] = 'FABRICADO'
+        else:
+            df.loc[index, 'PROCESSO'] = 'COMERCIAL'
+    report_log.append("Coluna 'PROCESSO' preenchida automaticamente baseada no formato do 'Nº DA PEÇA'.")
+
+    # 2. Inicia a coluna 'CÓDIGO FINAL'
+    df['CÓDIGO FINAL'] = 'NULO'
+
+    # 3. Pré-scan para encontrar os sequenciais comerciais mais altos já existentes
     for index, row in df.iterrows():
         numero_peca = str(row['Nº DA PEÇA'])
         if commercial_pattern.match(numero_peca):
@@ -170,20 +177,18 @@ def process_codes(df):
                     sequentials[group] = seq
              except (ValueError, IndexError):
                 continue
-
     report_log.append(f"Sequenciais iniciais detectados: {sequentials if sequentials else 'Nenhum'}")
 
-    # Loop de processamento principal
+    # 4. Loop de processamento principal
     for index, row in df.iterrows():
-        numero_peca = str(row['Nº DA PEÇA'])
-
-        # Condição 1: É um item fabricado com código válido?
-        if manufactured_pattern.match(numero_peca):
-            df.loc[index, 'CÓDIGO FINAL'] = numero_peca
+        # Se for 'FABRICADO', o código final é o número da peça
+        if row['PROCESSO'] == 'FABRICADO':
+            df.loc[index, 'CÓDIGO FINAL'] = row['Nº DA PEÇA']
             continue
-
-        # Condição 2: É um item comercial?
-        if row['PROCESSO'] == 'Comercial':
+        
+        # Se for 'COMERCIAL', gera ou valida o código
+        if row['PROCESSO'] == 'COMERCIAL':
+            numero_peca = str(row['Nº DA PEÇA'])
             # Se já tiver um código comercial válido, mantém.
             if commercial_pattern.match(numero_peca):
                 df.loc[index, 'CÓDIGO FINAL'] = numero_peca
@@ -193,30 +198,34 @@ def process_codes(df):
             group_match = group_pattern.search(str(row['GRUPO DE PRODUTO']))
             if group_match:
                 group_code = group_match.group(1)
-                
                 current_seq = sequentials.get(group_code, 0) + 1
                 sequentials[group_code] = current_seq
-                
                 new_code = f"{group_code}-{current_seq:04d}"
                 df.loc[index, 'CÓDIGO FINAL'] = new_code
                 report_log.append(f"✔️ Item '{row['TÍTULO']}' recebeu o novo código: {new_code}")
             else:
-                # Se não há grupo, o código permanece 'nulo'.
-                report_log.append(f"⚠️ Alerta: Item '{row['TÍTULO']}' é 'Comercial' mas não possui 'GRUPO DE PRODUTO'. Código não gerado (nulo).")
+                # Se não há grupo, o código permanece 'NULO'.
+                report_log.append(f"⚠️ Alerta: Item '{row['TÍTULO']}' é 'COMERCIAL' mas não possui 'GRUPO DE PRODUTO'. Código não gerado (NULO).")
 
-    # **NOVO**: Lógica de ordenação aprimorada
-    def get_code_type(code):
-        if manufactured_pattern.match(str(code)):
-            return 1  # Fabricado
-        if commercial_pattern.match(str(code)):
-            return 2  # Comercial
-        return 3      # Nulo/Outro
+    # 5. Lógica de ordenação aprimorada
+    def get_code_type(row):
+        code = str(row['CÓDIGO FINAL'])
+        processo = str(row['PROCESSO'])
+        if processo == 'FABRICADO':
+            return 1
+        if processo == 'COMERCIAL' and code != 'NULO':
+            return 2
+        return 3 # Nulo/Outro
 
-    df['TIPO_CODIGO'] = df['CÓDIGO FINAL'].apply(get_code_type)
-    
+    df['TIPO_CODIGO'] = df.apply(get_code_type, axis=1)
     df_final = df.sort_values(by=['TIPO_CODIGO', 'CÓDIGO FINAL']).reset_index(drop=True)
-    df_final = df_final.drop(columns=['TIPO_CODIGO']) # Remove coluna auxiliar
-    
+    df_final = df_final.drop(columns=['TIPO_CODIGO'])
+
+    # --- NOVA LÓGICA DE MAIÚSCULAS ---
+    # 6. Converte todas as colunas de texto para maiúsculas
+    for col in df_final.select_dtypes(include=['object']):
+        df_final[col] = df_final[col].str.upper()
+
     num_codes_generated = len([log for log in report_log if 'recebeu o novo código' in log])
     report_log.insert(0, f"✅ Processamento concluído. {num_codes_generated} novos códigos comerciais foram gerados.")
     
@@ -310,6 +319,4 @@ else:
                     st.markdown('</div>', unsafe_allow_html=True)
     except Exception as e:
         st.error(f"Ocorreu um erro inesperado durante o processamento: {e}")
-
-
 
