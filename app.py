@@ -7,39 +7,42 @@ from datetime import datetime
 # --- CONFIGURAÇÃO DA PÁGINA E ESTILO ---
 st.set_page_config(layout="wide", page_title="Gerador de Códigos de Itens")
 
-# Estilo CSS para um visual mais suave e atraente
+# Estilo CSS com melhor contraste e visual mais profissional
 st.markdown("""
 <style>
     /* Cor de fundo principal */
     .stApp {
-        background-color: #f0f2f6;
+        background-color: #f8f9fa;
     }
     /* Estilo para os cards */
     .card {
         background-color: #ffffff;
         border-radius: 10px;
         padding: 20px;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.05);
         margin-bottom: 20px;
     }
     /* Estilo para os títulos */
     h1, h2, h3 {
-        color: #1e3a8a; /* Azul escuro */
+        color: #0d3b66; /* Azul corporativo escuro */
     }
     /* Estilo para os botões */
     .stButton>button {
-        background-color: #2563eb; /* Azul médio */
+        background-color: #007bff; /* Azul primário */
         color: white;
         border-radius: 8px;
         border: none;
         padding: 10px 20px;
     }
     .stButton>button:hover {
-        background-color: #1d4ed8; /* Azul mais escuro */
+        background-color: #0056b3; /* Azul mais escuro */
     }
     /* Estilo para a barra lateral */
     [data-testid="stSidebar"] {
-        background-color: #e0e7ff; /* Lavanda suave */
+        background-color: #e9ecef; /* Cinza claro */
+    }
+    [data-testid="stSidebar"] .stMarkdown p, [data-testid="stSidebar"] label {
+        color: #212529 !important; /* Texto escuro para contraste */
     }
 </style>
 """, unsafe_allow_html=True)
@@ -71,13 +74,13 @@ def load_data(uploaded_file):
         for line in data_lines:
             if line.strip():
                 cells = [cell.strip() for cell in line.split('\t')]
-                # Garante que cada linha tenha o mesmo número de colunas que o cabeçalho
+                while len(cells) < len(header):
+                    cells.append('') # Adiciona células vazias se a linha for mais curta
                 parsed_data.append(cells[:len(header)])
         
         df = pd.DataFrame(parsed_data, columns=header)
-        df = df.iloc[::-1].reset_index(drop=True) # Inverte a ordem para a original
+        df = df.iloc[::-1].reset_index(drop=True)
         
-        # Converte a coluna 'QTD.' para numérico, tratando erros
         if 'QTD.' in df.columns:
             df['QTD.'] = pd.to_numeric(df['QTD.'], errors='coerce').fillna(0)
 
@@ -93,38 +96,31 @@ def process_codes(df):
     report_log = []
     df['CÓDIGO FINAL'] = ''
     
-    # Dicionário para guardar o último sequencial de cada grupo
     sequentials = {}
-
-    # Regex para extrair o código do grupo (XXX)
     group_pattern = re.compile(r'(\d{3})')
+    # Regex aprimorada para códigos de fabricação (mais flexível)
+    manufactured_pattern = re.compile(r'^\d{2}-\d{4}-\d{4}-.*')
 
-    # Identificar o maior sequencial já existente para cada grupo (para continuar a contagem)
     for index, row in df.iterrows():
-        if row['PROCESSO'] == 'Comercial' and '-' in str(row['Nº DA PEÇA']):
+        if row['PROCESSO'] == 'Comercial' and re.match(r'^\d{3}-\d{4}$', str(row['Nº DA PEÇA'])):
              try:
                 parts = str(row['Nº DA PEÇA']).split('-')
                 group = parts[0]
                 seq = int(parts[1])
-                if group in sequentials:
-                    if seq > sequentials[group]:
-                        sequentials[group] = seq
-                else:
+                if group not in sequentials or seq > sequentials[group]:
                     sequentials[group] = seq
              except (ValueError, IndexError):
-                continue # Ignora códigos comerciais mal formatados
+                continue
 
     report_log.append(f"Sequenciais iniciais detectados: {sequentials if sequentials else 'Nenhum'}")
 
-    # Processamento para gerar novos códigos
     for index, row in df.iterrows():
-        is_manufactured = bool(re.match(r'^\d{2}-\d{4}-\d{4}-\d{2}$', str(row['Nº DA PEÇA'])))
+        is_manufactured = bool(manufactured_pattern.match(str(row['Nº DA PEÇA'])))
         
-        if is_manufactured or row['PROCESSO'] != 'Comercial':
+        if is_manufactured or (row['PROCESSO'] != 'Comercial' and row['PROCESSO']):
             df.loc[index, 'CÓDIGO FINAL'] = row['Nº DA PEÇA']
-        else: # É item comercial e precisa de um código novo ou já tem
-            
-            # Se já tem um código comercial válido, mantém
+        
+        elif row['PROCESSO'] == 'Comercial':
             if re.match(r'^\d{3}-\d{4}$', str(row['Nº DA PEÇA'])):
                  df.loc[index, 'CÓDIGO FINAL'] = row['Nº DA PEÇA']
                  continue
@@ -133,22 +129,26 @@ def process_codes(df):
             if group_match:
                 group_code = group_match.group(1)
                 
-                # Incrementa o sequencial do grupo
                 current_seq = sequentials.get(group_code, 0) + 1
                 sequentials[group_code] = current_seq
                 
                 new_code = f"{group_code}-{current_seq:04d}"
                 df.loc[index, 'CÓDIGO FINAL'] = new_code
-                report_log.append(f"✔️ Item '{row['TÍTULO']}' do grupo '{row['GRUPO DE PRODUTO']}' recebeu o novo código: {new_code}")
+                report_log.append(f"✔️ Item '{row['TÍTULO']}' recebeu o novo código: {new_code}")
             else:
-                df.loc[index, 'CÓDIGO FINAL'] = 'ERRO: GRUPO NÃO IDENTIFICADO'
-                report_log.append(f"⚠️ Alerta: Não foi possível identificar o grupo para o item '{row['TÍTULO']}'.")
+                df.loc[index, 'CÓDIGO FINAL'] = 'ERRO: GRUPO AUSENTE'
+                report_log.append(f"⚠️ Alerta: Item '{row['TÍTULO']}' é 'Comercial' mas a coluna 'GRUPO DE PRODUTO' está vazia ou inválida. Código não gerado.")
+        else: # Casos não classificados
+            df.loc[index, 'CÓDIGO FINAL'] = row['Nº DA PEÇA']
 
-    # Separar, ordenar e juntar
-    df_fabricado = df[df['PROCESSO'] != 'Comercial'].sort_values(by='CÓDIGO FINAL')
-    df_comercial = df[df['PROCESSO'] == 'Comercial'].sort_values(by='CÓDIGO FINAL')
+
+    df_fabricado = df[df['PROCESSO'] != 'Comercial']
+    df_comercial = df[df['PROCESSO'] == 'Comercial']
     
-    df_final = pd.concat([df_fabricado, df_comercial], ignore_index=True)
+    df_final = pd.concat([
+        df_fabricado.sort_values(by='CÓDIGO FINAL'), 
+        df_comercial.sort_values(by='CÓDIGO FINAL')
+    ], ignore_index=True)
     
     num_codes_generated = len([log for log in report_log if 'recebeu o novo código' in log])
     report_log.insert(0, f"✅ Processamento concluído. {num_codes_generated} novos códigos comerciais foram gerados.")
@@ -166,21 +166,18 @@ def to_excel(df):
 
 # --- INTERFACE DA APLICAÇÃO ---
 
-# Barra Lateral
 with st.sidebar:
     st.image("https://images.unsplash.com/photo-1581092921462-63f1c1187449?q=80&w=1935&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D", use_column_width=True)
     st.header("1. Carregar Arquivo")
     uploaded_file = st.file_uploader(
-        "Selecione o arquivo TXT da lista de peças do SolidWorks:",
+        "Selecione o arquivo TXT da lista de peças:",
         type=['txt']
     )
     st.info("O arquivo deve ser separado por tabulação e ter o cabeçalho na última linha.", icon="ℹ️")
     
-# Título Principal
 st.title("⚙️ Gerador de Códigos para Itens Comerciais")
 st.write("Esta aplicação automatiza a codificação de itens comerciais com base na sua lista de peças e na norma de codificação.")
 
-# Corpo Principal
 if uploaded_file is None:
     st.info("Aguardando o upload do arquivo na barra lateral...")
 else:
@@ -192,20 +189,18 @@ else:
         else:
             df_processed, report = process_codes(df_raw.copy())
             
-            # Card para Relatório
             with st.container():
                 st.markdown('<div class="card">', unsafe_allow_html=True)
                 with st.expander("📄 Relatório de Processamento", expanded=True):
                     for log in report:
                         if "✔️" in log or "✅" in log:
-                            st.write(log)
+                            st.success(log)
                         elif "⚠️" in log:
                             st.warning(log)
                         else:
                             st.info(log)
                 st.markdown('</div>', unsafe_allow_html=True)
 
-            # Card para a Tabela e Opções de Exportação
             with st.container():
                 st.markdown('<div class="card">', unsafe_allow_html=True)
                 st.header("Lista de Peças Atualizada")
@@ -218,7 +213,6 @@ else:
                         key="sort"
                     )
 
-                # Aplica a classificação
                 if sort_option == "Padrão (Código Final)":
                     df_display = df_processed
                 else:
@@ -229,8 +223,6 @@ else:
                 st.subheader("2. Exportar Resultados")
                 
                 export_cols = st.columns(2)
-                
-                # Gerar nome do arquivo com data e hora
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 
                 with export_cols[0]:
