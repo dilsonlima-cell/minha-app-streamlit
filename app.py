@@ -7,7 +7,7 @@ from datetime import datetime
 # --- CONFIGURAÇÃO DA PÁGINA E ESTILO ---
 st.set_page_config(layout="wide", page_title="Gerador de Códigos de Itens")
 
-# Estilo CSS com a nova paleta (Pastel, Azul e Preto)
+# Estilo CSS final com paleta refinada e sem fundos pretos
 st.markdown("""
 <style>
     /* Cor de fundo principal */
@@ -24,8 +24,12 @@ st.markdown("""
         margin-bottom: 25px;
     }
     /* Estilo para os títulos */
-    h1, h2, h3 {
-        color: #004e98; /* Azul escuro para títulos */
+    h1 {
+        color: #0a2540; /* Azul-marinho escuro para o título principal */
+        font-weight: 700;
+    }
+    h2, h3 {
+        color: #004e98; /* Azul escuro para subtítulos */
         font-weight: 700;
     }
     /* Cor do texto principal */
@@ -59,6 +63,24 @@ st.markdown("""
     /* Cores do relatório */
     .stAlert[data-baseweb="alert"] > div {
         border-radius: 8px;
+    }
+
+    /* FORÇAR TEMA CLARO NA TABELA (DATAFRAME) */
+    [data-testid="stDataFrame"] {
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+    }
+    [data-testid="stDataFrame"] .col-header {
+        background-color: #f7f4ed !important;
+    }
+    [data-testid="stDataFrame"] .col-header-cell {
+        color: #000000 !important;
+        font-weight: 600;
+    }
+    [data-testid="stDataFrame"] .data-cell {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        border-color: #e0e0e0 !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -234,7 +256,7 @@ else:
                     st.subheader("2. Exportar Resultados")
                     
                     export_cols = st.columns(2)
-                    timestamp = datetime.now().strftime("%Y%d%m_%H%M%S")
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                     
                     with export_cols[0]:
                         st.download_button(
