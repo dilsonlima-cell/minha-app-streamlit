@@ -172,7 +172,6 @@ def process_codes(df, state_file):
         report_log.append(f"ℹ️ Nenhum arquivo de estado ('{state_file}') encontrado. Novos sequenciais serão iniciados.")
         
     group_pattern = re.compile(r'(\d{3})')
-    # **CORREÇÃO**: Padrão de fabricado mais flexível para aceitar variações na revisão
     manufactured_pattern = re.compile(r'^\d{2}-\d{4}-\d{4}-.*')
     commercial_pattern = re.compile(r'^\d{3}-\d{4}$')
 
@@ -219,6 +218,24 @@ def process_codes(df, state_file):
             else:
                 report_log.append(f"⚠️ Alerta: Item '{row['TÍTULO']}' é 'COMERCIAL' mas não possui 'GRUPO DE PRODUTO'. Código não gerado (NULO).")
 
+    # --- NOVA LÓGICA DE HIERARQUIA PAI-FILHO ---
+    df['CÓDIGO PAI'] = ''
+    parent_codes = {}
+    # Primeira passagem: mapeia o código final de todos os itens pais
+    for index, row in df.iterrows():
+        item_num = str(row['Nº DO ITEM'])
+        if '.' not in item_num: # É um item pai (ex: '1', '2')
+            parent_codes[item_num] = row['CÓDIGO FINAL']
+    
+    # Segunda passagem: preenche a coluna 'CÓDIGO PAI' para os filhos
+    for index, row in df.iterrows():
+        item_num = str(row['Nº DO ITEM'])
+        if '.' in item_num: # É um item filho (ex: '1.1', '2.1.1')
+            parent_num = item_num.split('.')[0]
+            if parent_num in parent_codes:
+                df.loc[index, 'CÓDIGO PAI'] = parent_codes[parent_num]
+    report_log.append("Hierarquia pai-filho processada e coluna 'CÓDIGO PAI' preenchida.")
+
     def get_code_type(row):
         code = str(row['CÓDIGO FINAL'])
         processo = str(row['PROCESSO'])
@@ -231,6 +248,15 @@ def process_codes(df, state_file):
     df['TIPO_CODIGO'] = df.apply(get_code_type, axis=1)
     df_final = df.sort_values(by=['TIPO_CODIGO', 'CÓDIGO FINAL']).reset_index(drop=True)
     df_final = df_final.drop(columns=['TIPO_CODIGO'])
+
+    # --- NOVA LÓGICA DE ORDENAÇÃO DE COLUNAS ---
+    cols = df_final.columns.tolist()
+    if 'CÓDIGO PAI' in cols:
+        cols.pop(cols.index('CÓDIGO PAI'))
+        if 'CÓDIGO FINAL' in cols:
+            final_code_index = cols.index('CÓDIGO FINAL')
+            cols.insert(final_code_index + 1, 'CÓDIGO PAI')
+            df_final = df_final[cols]
 
     for col in df_final.select_dtypes(include=['object']):
         df_final[col] = df_final[col].str.upper()
