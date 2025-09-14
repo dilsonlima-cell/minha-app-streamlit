@@ -7,156 +7,59 @@ import os
 from datetime import datetime
 from contextlib import contextmanager
 
-# --- PALETA DE CORES ATUALIZADA ---
-# O 'white' foi substituído pelo 'text_on_dark' para clareza
+# --- PALETA DE CORES (mantida) ---
 COLOR_PALETTE = {
     "darkest_green": "#255000",
     "dark_green": "#588100",
     "medium_green": "#8db600",
     "light_green": "#c6da52",
-    "very_light_green": "#ffff8b", # Usado como fundo principal
-    "text_on_dark": "#ffff8b",  # Cor para texto em fundos escuros (era branco)
+    "very_light_green": "#ffff8b",
+    "text_on_dark": "#ffff8b",
     "black": "#000000",
     "gray_text": "#333333"
 }
 
-
-# --- CONFIGURAÇÃO DA PÁGINA E ESTILO ---
+# --- CONFIGURAÇÃO DA PÁGINA E ESTILO (mantido) ---
 st.set_page_config(layout="wide", page_title="SolidWorks BOM Processor")
-
-# Estilo CSS atualizado para remover o texto branco
 st.markdown(f"""
 <style>
-    /* Cor de fundo principal da aplicação */
-    .stApp {{
-        background-color: {COLOR_PALETTE["very_light_green"]};
-        color: {COLOR_PALETTE["darkest_green"]};
-    }}
-
-    /* Estilo para o cabeçalho superior */
-    .header-bar {{
-        background-color: {COLOR_PALETTE["darkest_green"]};
-        padding: 10px 50px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 20px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    }}
-    .header-bar h1 {{
-        color: {COLOR_PALETTE["text_on_dark"]}; /* ALTERADO */
-        margin: 0;
-        font-size: 1.8rem;
-        font-weight: 600;
-    }}
-    .header-bar .stMarkdown p {{
-        color: {COLOR_PALETTE["light_green"]};
-        margin: 0;
-        font-size: 0.9rem;
-    }}
-    .header-nav {{
-        display: flex;
-        gap: 20px;
-    }}
-    .header-nav .stMarkdown p {{
-        color: {COLOR_PALETTE["medium_green"]};
-        cursor: pointer;
-        transition: color 0.2s;
-    }}
-    .header-nav .stMarkdown p:hover {{
-        color: {COLOR_PALETTE["text_on_dark"]}; /* ALTERADO */
-    }}
-
-    /* Seção "Começar Processamento" */
-    .start-processing-section {{
-        background-color: {COLOR_PALETTE["medium_green"]};
-        padding: 40px;
-        text-align: center;
-        border-radius: 10px;
-        margin-bottom: 30px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    }}
-    .start-processing-section h2 {{
-        color: {COLOR_PALETTE["darkest_green"]};
-        font-size: 2rem;
-        font-weight: 700;
-        margin-bottom: 10px;
-    }}
-    .start-processing-section p {{
-        color: {COLOR_PALETTE["darkest_green"]};
-        font-size: 1.1rem;
-    }}
-
-    /* Estilo para os cards de conteúdo */
-    .card {{
-        background-color: #FFFFFF; /* Mantido branco para os cards */
-        border: 1px solid {COLOR_PALETTE["light_green"]};
-        border-radius: 10px;
-        padding: 25px;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.05);
-        margin-bottom: 25px;
-    }}
-
-    /* Títulos e textos gerais */
-    h1, h2, h3 {{
-        color: {COLOR_PALETTE["darkest_green"]};
-    }}
-    body, p, label, .stMarkdown {{
-        color: {COLOR_PALETTE["gray_text"]} !important;
-    }}
-    .stApp > header, .stApp > div:first-child > div:nth-child(2) > div.stMarkdown, .stApp > div:first-child > div:nth-child(2) > p {{
-        color: {COLOR_PALETTE["darkest_green"]} !important;
-    }}
-
-    /* Estilo para os botões */
-    .stButton>button {{
-        background-color: {COLOR_PALETTE["dark_green"]};
-        color: {COLOR_PALETTE["text_on_dark"]}; /* ALTERADO */
-        border-radius: 8px;
-        border: none;
-        padding: 10px 24px;
-        font-weight: 500;
-        transition: background-color 0.2s;
-    }}
-    .stButton>button:hover {{
-        background-color: {COLOR_PALETTE["darkest_green"]};
-        color: {COLOR_PALETTE["text_on_dark"]}; /* ALTERADO */
-    }}
-
-    /* Estilo para a barra lateral e outros elementos */
-    [data-testid="stSidebar"] {{
-        background-color: {COLOR_PALETTE["light_green"]};
-        border-right: 1px solid {COLOR_PALETTE["dark_green"]};
-    }}
-    [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {{
-        color: {COLOR_PALETTE["darkest_green"]};
-    }}
-    .st-emotion-cache-115fcme summary, .st-emotion-cache-115fcme button {{
-        color: {COLOR_PALETTE["darkest_green"]} !important;
-    }}
-    .stAlert[data-baseweb="alert"] > div {{ border-radius: 8px; }}
+    .stApp {{ background-color: {COLOR_PALETTE["very_light_green"]}; color: {COLOR_PALETTE["darkest_green"]}; }}
+    .header-bar {{ background-color: {COLOR_PALETTE["darkest_green"]}; padding: 10px 50px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }}
+    .header-bar h1 {{ color: {COLOR_PALETTE["text_on_dark"]}; margin: 0; font-size: 1.8rem; font-weight: 600; }}
+    .header-bar .stMarkdown p {{ color: {COLOR_PALETTE["light_green"]}; margin: 0; font-size: 0.9rem; }}
+    .header-nav {{ display: flex; gap: 20px; }}
+    .header-nav .stMarkdown p {{ color: {COLOR_PALETTE["medium_green"]}; cursor: pointer; transition: color 0.2s; }}
+    .header-nav .stMarkdown p:hover {{ color: {COLOR_PALETTE["text_on_dark"]}; }}
+    .start-processing-section {{ background-color: {COLOR_PALETTE["medium_green"]}; padding: 40px; text-align: center; border-radius: 10px; margin-bottom: 30px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }}
+    .start-processing-section h2 {{ color: {COLOR_PALETTE["darkest_green"]}; font-size: 2rem; font-weight: 700; margin-bottom: 10px; }}
+    .start-processing-section p {{ color: {COLOR_PALETTE["darkest_green"]}; font-size: 1.1rem; }}
+    .card {{ background-color: #FFFFFF; border: 1px solid {COLOR_PALETTE["light_green"]}; border-radius: 10px; padding: 25px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); margin-bottom: 25px; }}
+    h1, h2, h3 {{ color: {COLOR_PALETTE["darkest_green"]}; }}
+    body, p, label, .stMarkdown {{ color: {COLOR_PALETTE["gray_text"]} !important; }}
+    .stApp > header, .stApp > div:first-child > div:nth-child(2) > div.stMarkdown, .stApp > div:first-child > div:nth-child(2) > p {{ color: {COLOR_PALETTE["darkest_green"]} !important; }}
+    .stButton>button {{ background-color: {COLOR_PALETTE["dark_green"]}; color: {COLOR_PALETTE["text_on_dark"]}; border-radius: 8px; border: none; padding: 10px 24px; font-weight: 500; transition: background-color 0.2s; }}
+    .stButton>button:hover {{ background-color: {COLOR_PALETTE["darkest_green"]}; color: {COLOR_PALETTE["text_on_dark"]}; }}
+    [data-testid="stSidebar"] {{ background-color: {COLOR_PALETTE["light_green"]}; border-right: 1px solid {COLOR_PALETTE["dark_green"]}; }}
+    [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {{ color: {COLOR_PALETTE["darkest_green"]}; }}
+    .st-emotion-cache-115fcme summary, .st-emotion-cache-115fcme button {{ color: {COLOR_PALETTE["darkest_green"]} !important; }}
     .stAlert.stAlert_success {{ background-color: #d4edda; color: #155724; border-color: #c3e6cb; }}
     .stAlert.stAlert_warning {{ background-color: #fff3cd; color: #856404; border-color: #ffeeba; }}
     .stAlert.stAlert_info {{ background-color: #d1ecf1; color: #0c5460; border-color: #bee5eb; }}
     .stAlert.stAlert_error {{ background-color: #f8d7da; color: #721c24; border-color: #f5c6cb; }}
-    [data-testid="stDataFrame"] {{ border: 1px solid {COLOR_PALETTE["light_green"]}; border-radius: 8px; }}
     [data-testid="stDataFrame"] .col-header {{ background-color: {COLOR_PALETTE["light_green"]} !important; }}
     [data-testid="stDataFrame"] .col-header-cell {{ color: {COLOR_PALETTE["darkest_green"]} !important; }}
-    [data-testid="stDataFrame"] .data-cell {{ background-color: #FFFFFF !important; }}
     .upload-area-main .stFileUploader > div:first-child {{ border: 2px dashed {COLOR_PALETTE["dark_green"]}; }}
     .upload-area-main .stFileUploader > div:first-child svg {{ color: {COLOR_PALETTE["dark_green"]}; }}
 </style>
 """, unsafe_allow_html=True)
 
-# --- FUNÇÃO AUXILIAR PARA CARD ---
 @contextmanager
 def card_container():
     st.markdown('<div class="card">', unsafe_allow_html=True)
     yield
     st.markdown('</div>', unsafe_allow_html=True)
 
-
-# --- FUNÇÕES DE PROCESSAMENTO (sem alterações) ---
+# --- FUNÇÕES DE PROCESSAMENTO ---
 def load_sequentials(file_path):
     if os.path.exists(file_path):
         with open(file_path, 'r') as f:
@@ -246,42 +149,47 @@ def process_codes(df, state_file):
                 report_log.append(f"'{row['TÍTULO']}' recebeu código: {new_code}")
             else: report_log.append(f"'{row['TÍTULO']}' COMERCIAL sem grupo -> NULO")
     df['CÓDIGO FINAL'] = df['CÓDIGO FINAL'].replace('', 'NULO')
-    df['Nº DO ITEM'] = df['Nº DO ITEM'].astype(str).str.strip()
-    code_map = pd.Series(df['CÓDIGO FINAL'].values, index=df['Nº DO ITEM']).to_dict()
-    def find_parent_code(item_id):
-        parts = item_id.split('.')
-        while len(parts) > 1:
-            parts = parts[:-1]
-            parent = '.'.join(parts)
-            if parent in code_map: return code_map[parent]
-        return None
-    df['CÓDIGO PAI'] = df['Nº DO ITEM'].apply(lambda x: find_parent_code(x) or "")
-    report_log.append("Hierarquia pai-filho processada.")
-    cols = df.columns.tolist()
-    if 'CÓDIGO PAI' in cols:
-        cols.remove('CÓDIGO PAI')
-        if 'CÓDIGO FINAL' in cols:
-            final_code_index = cols.index('CÓDIGO FINAL')
-            cols.insert(final_code_index + 1, 'CÓDIGO PAI')
-    if 'DIMENSÕES' in cols:
-        cols.remove('DIMENSÕES')
-        if 'MATERIAL' in cols:
-            material_index = cols.index('MATERIAL')
-            cols.insert(material_index + 1, 'DIMENSÕES')
-        else: cols.append('DIMENSÕES')
-    df = df[cols]
+
+    # Ordenação lógica
     def get_tipo(row):
         if row['PROCESSO'] == 'FABRICADO': return 1
         if row['PROCESSO'] == 'COMERCIAL' and row['CÓDIGO FINAL'] != 'NULO': return 2
         return 3
     df['TIPO'] = df.apply(get_tipo, axis=1)
     df = df.sort_values(by=['TIPO','CÓDIGO FINAL']).drop(columns=['TIPO']).reset_index(drop=True)
+
+    # Padronizar strings para maiúsculas
     for col in df.select_dtypes(include=['object']):
         df[col] = df[col].astype(str).str.upper()
+
+    # --- CORREÇÃO: Bloco da hierarquia movido para o final ---
+    # Garante que os dados (Nº DO ITEM e CÓDIGO FINAL) estão finalizados
+    df['Nº DO ITEM'] = df['Nº DO ITEM'].astype(str).str.strip()
+    code_map = pd.Series(df['CÓDIGO FINAL'].values, index=df['Nº DO ITEM']).to_dict()
+
+    def find_parent_code(item_id):
+        parts = item_id.split('.')
+        while len(parts) > 1:
+            parts = parts[:-1]
+            parent = '.'.join(parts)
+            if parent in code_map:
+                return code_map[parent]
+        return None
+
+    df['CÓDIGO PAI'] = df['Nº DO ITEM'].apply(lambda x: find_parent_code(x) or "")
+    # --- FIM DO BLOCO MOVIDO ---
+
+    # Reordenamento de Colunas (agora também no final)
+    cols = df.columns.tolist()
+    final_order = [col for col in ['Nº DO ITEM', 'TÍTULO', 'Nº DA PEÇA', 'PROCESSO', 'GRUPO DE PRODUTO', 'MATERIAL', 'DIMENSÕES', 'CÓDIGO FINAL', 'CÓDIGO PAI'] if col in cols]
+    other_cols = [col for col in cols if col not in final_order]
+    df = df[final_order + other_cols]
+
     save_sequentials(state_file, sequentials)
     report_log.append(f"Sequenciais salvos em {state_file}")
     num_codes_generated = len([log for log in report_log if 'recebeu código:' in log])
     report_log.insert(0, f"Processamento concluído. {num_codes_generated} novos códigos comerciais foram gerados.")
+
     return df, report_log
 
 @st.cache_data
