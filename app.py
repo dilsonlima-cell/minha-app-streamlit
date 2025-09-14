@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import io
 import re
+import json
+import os
 from datetime import datetime
 
 # --- CONFIGURAÇÃO DA PÁGINA E ESTILO ---
@@ -98,6 +100,21 @@ st.markdown("""
 
 # --- FUNÇÕES AUXILIARES ---
 
+def load_sequentials(file_path):
+    """Carrega os contadores sequenciais de um arquivo JSON."""
+    if os.path.exists(file_path):
+        with open(file_path, 'r') as f:
+            try:
+                return json.load(f)
+            except json.JSONDecodeError:
+                return {} # Retorna vazio se o arquivo estiver corrompido
+    return {}
+
+def save_sequentials(file_path, data):
+    """Salva os contadores sequenciais em um arquivo JSON."""
+    with open(file_path, 'w') as f:
+        json.dump(data, f, indent=4)
+
 @st.cache_data
 def load_data(uploaded_file):
     """Lê o arquivo TXT com cabeçalho no final e o converte para DataFrame."""
@@ -130,11 +147,10 @@ def load_data(uploaded_file):
         df = pd.DataFrame(parsed_data, columns=header)
         df = df.iloc[::-1].reset_index(drop=True)
 
-        # Garante que colunas essenciais existam, mesmo que vazias
         required_cols = ['Nº DA PEÇA', 'PROCESSO', 'GRUPO DE PRODUTO', 'TÍTULO']
         for col in required_cols:
             if col not in df.columns:
-                df[col] = '' # Cria a coluna com valores vazios se não existir
+                df[col] = ''
         
         if 'QTD.' in df.columns:
             df['QTD.'] = pd.to_numeric(df['QTD.'], errors='coerce').fillna(0)
@@ -143,58 +159,55 @@ def load_data(uploaded_file):
     except Exception as e:
         return None, f"Erro ao ler o arquivo: {e}"
 
-def process_codes(df):
-    """Gera códigos para itens comerciais e organiza o DataFrame."""
+def process_codes(df, state_file):
+    """Gera códigos para itens comerciais, organiza o DataFrame e persiste os sequenciais."""
     if df is None or df.empty:
         return pd.DataFrame(), []
 
     report_log = []
-    sequentials = {}
+    sequentials = load_sequentials(state_file)
+    if sequentials:
+        report_log.append(f"💾 Estado dos sequenciais carregado de '{state_file}'.")
+    else:
+        report_log.append(f"ℹ️ Nenhum arquivo de estado ('{state_file}') encontrado. Novos sequenciais serão iniciados.")
+        
     group_pattern = re.compile(r'(\d{3})')
     manufactured_pattern = re.compile(r'^\d{2}-\d{4}-\d{4}-\d{2}$')
     commercial_pattern = re.compile(r'^\d{3}-\d{4}$')
 
-    # --- NOVA LÓGICA DE CLASSIFICAÇÃO ---
-    # 1. Preenche a coluna 'PROCESSO' automaticamente
     for index, row in df.iterrows():
         if manufactured_pattern.match(str(row['Nº DA PEÇA'])):
             df.loc[index, 'PROCESSO'] = 'FABRICADO'
         else:
             df.loc[index, 'PROCESSO'] = 'COMERCIAL'
-    report_log.append("Coluna 'PROCESSO' preenchida automaticamente baseada no formato do 'Nº DA PEÇA'.")
+    report_log.append("Coluna 'PROCESSO' preenchida automaticamente.")
 
-    # 2. Inicia a coluna 'CÓDIGO FINAL'
     df['CÓDIGO FINAL'] = 'NULO'
 
-    # 3. Pré-scan para encontrar os sequenciais comerciais mais altos já existentes
     for index, row in df.iterrows():
         numero_peca = str(row['Nº DA PEÇA'])
         if commercial_pattern.match(numero_peca):
              try:
                 parts = numero_peca.split('-')
                 group, seq = parts[0], int(parts[1])
-                if group not in sequentials or seq > sequentials[group]:
+                # Atualiza o sequencial se encontrar um maior no arquivo de entrada
+                if group not in sequentials or seq > sequentials.get(group, 0):
                     sequentials[group] = seq
              except (ValueError, IndexError):
                 continue
-    report_log.append(f"Sequenciais iniciais detectados: {sequentials if sequentials else 'Nenhum'}")
+    report_log.append(f"Sequenciais iniciais (após scan do arquivo): {sequentials if sequentials else 'Nenhum'}")
 
-    # 4. Loop de processamento principal
     for index, row in df.iterrows():
-        # Se for 'FABRICADO', o código final é o número da peça
         if row['PROCESSO'] == 'FABRICADO':
             df.loc[index, 'CÓDIGO FINAL'] = row['Nº DA PEÇA']
             continue
         
-        # Se for 'COMERCIAL', gera ou valida o código
         if row['PROCESSO'] == 'COMERCIAL':
             numero_peca = str(row['Nº DA PEÇA'])
-            # Se já tiver um código comercial válido, mantém.
             if commercial_pattern.match(numero_peca):
                 df.loc[index, 'CÓDIGO FINAL'] = numero_peca
                 continue
 
-            # Se não, tenta gerar um novo código.
             group_match = group_pattern.search(str(row['GRUPO DE PRODUTO']))
             if group_match:
                 group_code = group_match.group(1)
@@ -204,10 +217,8 @@ def process_codes(df):
                 df.loc[index, 'CÓDIGO FINAL'] = new_code
                 report_log.append(f"✔️ Item '{row['TÍTULO']}' recebeu o novo código: {new_code}")
             else:
-                # Se não há grupo, o código permanece 'NULO'.
                 report_log.append(f"⚠️ Alerta: Item '{row['TÍTULO']}' é 'COMERCIAL' mas não possui 'GRUPO DE PRODUTO'. Código não gerado (NULO).")
 
-    # 5. Lógica de ordenação aprimorada
     def get_code_type(row):
         code = str(row['CÓDIGO FINAL'])
         processo = str(row['PROCESSO'])
@@ -215,16 +226,17 @@ def process_codes(df):
             return 1
         if processo == 'COMERCIAL' and code != 'NULO':
             return 2
-        return 3 # Nulo/Outro
+        return 3
 
     df['TIPO_CODIGO'] = df.apply(get_code_type, axis=1)
     df_final = df.sort_values(by=['TIPO_CODIGO', 'CÓDIGO FINAL']).reset_index(drop=True)
     df_final = df_final.drop(columns=['TIPO_CODIGO'])
 
-    # --- NOVA LÓGICA DE MAIÚSCULAS ---
-    # 6. Converte todas as colunas de texto para maiúsculas
     for col in df_final.select_dtypes(include=['object']):
         df_final[col] = df_final[col].str.upper()
+
+    save_sequentials(state_file, sequentials)
+    report_log.append(f"💾 Estado final dos sequenciais salvo em '{state_file}'.")
 
     num_codes_generated = len([log for log in report_log if 'recebeu o novo código' in log])
     report_log.insert(0, f"✅ Processamento concluído. {num_codes_generated} novos códigos comerciais foram gerados.")
@@ -251,6 +263,13 @@ with st.sidebar:
     )
     st.info("O arquivo deve ser separado por tabulação e ter o cabeçalho na última linha.", icon="ℹ️")
     
+    st.header("2. Persistência de Códigos")
+    state_file = st.text_input(
+        "Nome do arquivo de estado:",
+        "estado_sequenciais.json"
+    )
+    st.info("Salva os contadores sequenciais para evitar códigos duplicados em futuras execuções.", icon="💾")
+
 st.title("⚙️ Gerador de Códigos para Itens Comerciais")
 st.write("Esta aplicação automatiza a codificação de itens comerciais com base na sua lista de peças e na norma de codificação.")
 
@@ -264,7 +283,7 @@ else:
             if df_raw is None:
                 st.error(f"❌ {load_message}")
             else:
-                df_processed, report = process_codes(df_raw.copy())
+                df_processed, report = process_codes(df_raw.copy(), state_file)
                 
                 with st.container():
                     st.markdown('<div class="card">', unsafe_allow_html=True)
