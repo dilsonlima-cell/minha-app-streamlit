@@ -76,7 +76,8 @@ def load_data(uploaded_file):
     if uploaded_file is None: return None, "Nenhum arquivo carregado."
     try:
         if uploaded_file.name.endswith(".xlsx"):
-            df = pd.read_excel(uploaded_file, dtype=str).fillna('')
+            # Ler todas as colunas como texto para evitar conversão automática
+            df = pd.read_excel(uploaded_file, dtype=str)
         else: # TXT
             content = uploaded_file.getvalue().decode('utf-8').splitlines()
             header_line_index = -1
@@ -96,6 +97,16 @@ def load_data(uploaded_file):
             df = pd.DataFrame(parsed_data, columns=header)
             df = df.iloc[::-1].reset_index(drop=True)
         
+        # Garante que todas as células sejam strings e preenche vazios
+        df = df.astype(str).fillna('')
+        
+        # --- CORREÇÃO DEFINITIVA APLICADA AQUI ---
+        # Garante que a coluna 'Nº DO ITEM' exista antes de limpá-la
+        if 'Nº DO ITEM' in df.columns:
+            # Remove o '.0' que o Excel adiciona a números inteiros (ex: '1.0' -> '1')
+            df['Nº DO ITEM'] = df['Nº DO ITEM'].str.replace(r'\.0$', '', regex=True)
+        # --- FIM DA CORREÇÃO ---
+
         essential_cols = ['Nº DA PEÇA', 'PROCESSO', 'GRUPO DE PRODUTO', 'TÍTULO', 'Nº DO ITEM', 'MATERIAL', 'DIMENSÕES']
         for col in essential_cols:
             if col not in df.columns: df[col] = ''
@@ -103,7 +114,6 @@ def load_data(uploaded_file):
         if 'QTD.' in df.columns:
             df['QTD.'] = pd.to_numeric(df['QTD.'], errors='coerce').fillna(0)
         
-        df = df.astype(str).fillna('')
         return df, "Arquivo lido com sucesso."
     except Exception as e: return None, f"Erro ao ler o arquivo: {e}"
 
@@ -117,7 +127,7 @@ def process_codes(df, state_file):
     commercial_pattern = re.compile(r'^\d{3}-\d{4}$')
     processed_count = 0
     for i, row in df.iterrows():
-        if not row['PROCESSO'].strip():
+        if not str(row['PROCESSO']).strip():
             df.loc[i, 'PROCESSO'] = 'FABRICADO' if manufactured_pattern.match(str(row['Nº DA PEÇA'])) else 'COMERCIAL'
             processed_count += 1
     report_log.append(f"Coluna 'PROCESSO' preenchida para {processed_count} linhas vazias.")
@@ -150,35 +160,31 @@ def process_codes(df, state_file):
             else: report_log.append(f"'{row['TÍTULO']}' COMERCIAL sem grupo -> NULO")
     df['CÓDIGO FINAL'] = df['CÓDIGO FINAL'].replace('', 'NULO')
 
-    # Ordenação lógica
+    # Ordenação e conversão para maiúsculas primeiro
     def get_tipo(row):
         if row['PROCESSO'] == 'FABRICADO': return 1
         if row['PROCESSO'] == 'COMERCIAL' and row['CÓDIGO FINAL'] != 'NULO': return 2
         return 3
     df['TIPO'] = df.apply(get_tipo, axis=1)
     df = df.sort_values(by=['TIPO','CÓDIGO FINAL']).drop(columns=['TIPO']).reset_index(drop=True)
-
-    # Padronizar strings para maiúsculas
     for col in df.select_dtypes(include=['object']):
         df[col] = df[col].astype(str).str.upper()
 
-    # --- **CLASSIFICAÇÃO PAI/FILHO INSERIDA AQUI** ---
-    # Este é o bloco de código que você enviou, posicionado no final para garantir robustez.
+    # Lógica de hierarquia executada sobre os dados já limpos e finalizados
     df['Nº DO ITEM'] = df['Nº DO ITEM'].astype(str).str.strip()
     code_map = pd.Series(df['CÓDIGO FINAL'].values, index=df['Nº DO ITEM']).to_dict()
-
     def find_parent_code(item_id):
         parts = item_id.split('.')
         while len(parts) > 1:
             parts = parts[:-1]
             parent = '.'.join(parts)
-            if parent in code_map:
-                return code_map[parent]
+            if parent in code_map: return code_map[parent]
         return None
-
     df['CÓDIGO PAI'] = df['Nº DO ITEM'].apply(lambda x: find_parent_code(x) or "")
-    report_log.append("Hierarquia pai-filho processada.")
-    # --- FIM DO BLOCO ---
+    
+    # Adiciona log de sucesso da hierarquia
+    parents_found = df['CÓDIGO PAI'].astype(bool).sum()
+    report_log.append(f"Hierarquia processada: {parents_found} itens receberam um Código Pai.")
 
     # Reordenamento de Colunas
     final_order = [col for col in ['Nº DO ITEM', 'TÍTULO', 'Nº DA PEÇA', 'PROCESSO', 'GRUPO DE PRODUTO', 'MATERIAL', 'DIMENSÕES', 'CÓDIGO FINAL', 'CÓDIGO PAI'] if col in df.columns]
@@ -189,7 +195,6 @@ def process_codes(df, state_file):
     report_log.append(f"Sequenciais salvos em {state_file}")
     num_codes_generated = len([log for log in report_log if 'recebeu código:' in log])
     report_log.insert(0, f"Processamento concluído. {num_codes_generated} novos códigos comerciais foram gerados.")
-
     return df, report_log
 
 @st.cache_data
@@ -200,7 +205,7 @@ def to_excel(df):
     processed_data = out.getvalue()
     return processed_data
 
-# --- INTERFACE (sem alterações) ---
+# --- INTERFACE ---
 st.markdown(f"""<div class="header-bar"><div><h1>SolidWorks BOM Processor</h1><p>Processamento automático de listas de materiais exportadas do SolidWorks</p></div><div class="header-nav"><p>⚡ Processamento Rápido</p><p>📝 Normas Internas</p><p>💾 Export Excel/CSV</p></div></div>""", unsafe_allow_html=True)
 with st.sidebar:
     st.header("Configurações")
@@ -209,40 +214,63 @@ with st.sidebar:
     st.info("Salva os contadores sequenciais para evitar códigos duplicados.", icon="💾")
 with st.container():
     st.markdown('<div class="start-processing-section"><h2>Começar Processamento</h2><p>Faça upload do arquivo TXT ou XLSX exportado do SolidWorks.</p></div>', unsafe_allow_html=True)
+
+# Armazena o dataframe bruto no estado da sessão
+if 'df_raw' not in st.session_state:
+    st.session_state.df_raw = None
+
 with card_container():
     st.subheader("Upload de Arquivo BOM")
     st.write("Faça upload do arquivo TXT ou XLSX exportado do SolidWorks.")
     uploaded_file = st.file_uploader("Clique ou arraste um arquivo", type=['txt','xlsx'], key="main_uploader", help="TXT deve ser separado por tabulação com cabeçalho na última linha.")
     st.markdown('<div class="upload-area-main"></div>', unsafe_allow_html=True)
-if not uploaded_file:
-    st.info("Aguardando upload de um arquivo para começar...", icon="👆")
-else:
-    try:
-        with st.spinner("Processando..."):
-            df_raw, msg = load_data(uploaded_file)
-            if df_raw is None: st.error(f"❌ {msg}")
-            else:
-                df_proc, report = process_codes(df_raw.copy(), state_file)
-                tab_relatorio, tab_dados = st.tabs(["📄 Relatório de Processamento", "📊 Lista de Peças Atualizada"])
-                with tab_relatorio:
-                    with card_container():
-                        st.subheader("Detalhes do Processamento")
-                        for log in report:
-                            if "concluído" in log: st.success(log)
-                            elif "sem grupo" in log: st.warning(log)
-                            else: st.info(log)
-                with tab_dados:
-                    with card_container():
-                        st.subheader("Dados Processados")
-                        sort_option = st.radio("Classificar por:", ("Padrão","GRUPO DE PRODUTO","PROCESSO"), horizontal=True, key="sort_radio_main")
-                        df_show = df_proc if sort_option=="Padrão" else df_proc.sort_values(by=sort_option, kind='mergesort').reset_index(drop=True)
-                        st.dataframe(df_show, use_container_width=True)
-                        st.subheader("Exportar Resultados")
-                        t = datetime.now().strftime("%Y%m%d_%H%M%S")
-                        c1,c2 = st.columns(2)
-                        with c1: st.download_button("📥 Exportar para Excel", to_excel(df_show), f"lista_codificada_{t}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-                        with c2: st.download_button("📥 Exportar para CSV", df_show.to_csv(index=False).encode("utf-8"), f"lista_codificada_{t}.csv", mime="text/csv")
-    except Exception as e: st.error(f"Ocorreu um erro inesperado: {e}")
+
+# Lógica principal da interface
+if uploaded_file:
+    # Processa os dados brutos e armazena no estado da sessão
+    st.session_state.df_raw, msg = load_data(uploaded_file)
+    
+    # --- NOVA FUNCIONALIDADE: PRÉ-VISUALIZAÇÃO ---
+    if st.session_state.df_raw is not None:
+        with st.expander("👁️ Pré-visualização dos Dados Carregados (verifique a coluna 'Nº DO ITEM')"):
+            st.info("Esta tabela mostra os dados brutos após a limpeza inicial. Verifique se os números de item (ex: '1', '1.1') estão formatados corretamente antes de processar.")
+            st.dataframe(st.session_state.df_raw.head(10))
+    # --- FIM DA NOVA FUNCIONALIDADE ---
+    
+    # Botão para iniciar o processamento completo
+    if st.button("🚀 Processar Códigos", type="primary"):
+        try:
+            with st.spinner("Processando..."):
+                df_proc, report = process_codes(st.session_state.df_raw.copy(), state_file)
+                st.session_state.df_proc = df_proc
+                st.session_state.report = report
+        except Exception as e:
+            st.error(f"Ocorreu um erro inesperado durante o processamento: {e}")
+            st.session_state.df_proc = None # Limpa o resultado em caso de erro
+
+# Exibe os resultados se eles existirem no estado da sessão
+if 'df_proc' in st.session_state and st.session_state.df_proc is not None:
+    tab_relatorio, tab_dados = st.tabs(["📄 Relatório de Processamento", "📊 Lista de Peças Atualizada"])
+    with tab_relatorio:
+        with card_container():
+            st.subheader("Detalhes do Processamento")
+            for log in st.session_state.report:
+                if "concluído" in log or "Hierarquia processada" in log: st.success(log)
+                elif "sem grupo" in log: st.warning(log)
+                else: st.info(log)
+    with tab_dados:
+        with card_container():
+            st.subheader("Dados Processados")
+            sort_option = st.radio("Classificar por:", ("Padrão","GRUPO DE PRODUTO","PROCESSO"), horizontal=True, key="sort_radio_main")
+            df_show = st.session_state.df_proc if sort_option=="Padrão" else st.session_state.df_proc.sort_values(by=sort_option, kind='mergesort').reset_index(drop=True)
+            st.dataframe(df_show, use_container_width=True)
+            st.subheader("Exportar Resultados")
+            t = datetime.now().strftime("%Y%m%d_%H%M%S")
+            c1,c2 = st.columns(2)
+            with c1: st.download_button("📥 Exportar para Excel", to_excel(df_show), f"lista_codificada_{t}.xlsx", mime="application/vnd.openxmlformats-officedocument-spreadsheetml-sheet")
+            with c2: st.download_button("📥 Exportar para CSV", df_show.to_csv(index=False).encode("utf-8"), f"lista_codificada_{t}.csv", mime="text/csv")
+
+# Seção de Recursos no final
 st.markdown("---")
 col_auto, col_flex = st.columns(2)
 with col_auto:
