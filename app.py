@@ -7,63 +7,51 @@ import os
 from datetime import datetime
 from contextlib import contextmanager
 
-# --- NOVA PALETA DE CORES (AJUSTADA PARA A NOVA IMAGEM) ---
-NEW_COLOR_PALETTE = {
-    "background_main": "#848265", # Cor principal da imagem fornecida
-    "text_main": "#F8F9FA",      # Texto claro para contraste no fundo escuro
-    "text_secondary": "#dee2e6", # Um cinza claro para texto secundário
-    "card_background": "#F8F9FA", # Fundo dos cards, um off-white para contraste
-    "card_border": "#918A70",     # Borda do card, "Musgo Esverdeado"
-    "header_bar_bg": "#434D36",   # Cinza escuro para a barra superior
-    "header_text": "#FFFFFF",
-    "start_processing_bg": "#918A70", # "Musgo Esverdeado" para a seção "Começar Processamento"
-    "start_processing_text": "#284703", # Verde escuro para texto no musgo
-    "button_bg": "#777B5B",       # "Verde Artesão" para botões
-    "button_hover": "#555D4C",    # Um cinza mais escuro no hover
-    "sidebar_bg": "#777B5B",      # Verde Artesão para sidebar
-    "sidebar_text": "#F8F9FA",
-    "link_color": "#F8F9FA",      # Links na barra superior
-    "link_hover": "#FFFFFF",
-    "alert_success_bg": "#e6ffed", "alert_success_text": "#1f874b", "alert_success_border": "#1f874b",
-    "alert_warning_bg": "#fff3e6", "alert_warning_text": "#cc7000", "alert_warning_border": "#cc7000",
-    "alert_info_bg": "#e6f7ff", "alert_info_text": "#007bff", "alert_info_border": "#007bff",
-    "alert_error_bg": "#ffe6e6", "alert_error_text": "#cc0000", "alert_error_border": "#cc0000",
-    "dataframe_header_bg": "#918A70", # Cabeçalho da tabela com Musgo Esverdeado
-    "dataframe_text": "#212529" # Texto escuro para tabela
+# --- NOVA PALETA DE CORES ---
+COLOR_PALETTE = {
+    "darkest_green": "#255000", # Verde muito escuro
+    "dark_green": "#588100",    # Verde médio-escuro
+    "medium_green": "#8db600",  # Verde médio-claro
+    "light_green": "#c6da52",   # Verde pastel/claro
+    "very_light_green": "#ffff8b", # Amarelo pastel/muito claro
+
+    "white": "#FFFFFF",
+    "black": "#000000",
+    "gray_text": "#333333" # Um cinza escuro para texto em fundos claros
 }
 
 
 # --- CONFIGURAÇÃO DA PÁGINA E ESTILO ---
 st.set_page_config(layout="wide", page_title="SolidWorks BOM Processor")
 
-# Estilo CSS atualizado com base na nova paleta de cores e layout da Image 1
+# Estilo CSS atualizado com base na nova paleta de cores
 st.markdown(f"""
 <style>
-    /* Cor de fundo principal */
+    /* Cor de fundo principal da aplicação */
     .stApp {{
-        background-color: {NEW_COLOR_PALETTE["background_main"]};
-        color: {NEW_COLOR_PALETTE["text_main"]};
+        background-color: {COLOR_PALETTE["very_light_green"]}; /* Amarelo pastel/muito claro */
+        color: {COLOR_PALETTE["darkest_green"]}; /* Texto padrão */
     }}
 
-    /* Estilo para o cabeçalho superior (semelhante ao da Image 1) */
+    /* Estilo para o cabeçalho superior */
     .header-bar {{
-        background-color: {NEW_COLOR_PALETTE["header_bar_bg"]};
+        background-color: {COLOR_PALETTE["darkest_green"]}; /* Verde muito escuro */
         padding: 10px 50px;
         display: flex;
         justify-content: space-between;
         align-items: center;
         margin-bottom: 20px;
         border-radius: 0px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
     }}
     .header-bar h1 {{
-        color: {NEW_COLOR_PALETTE["header_text"]};
+        color: {COLOR_PALETTE["white"]}; /* Branco */
         margin: 0;
         font-size: 1.8rem;
         font-weight: 600;
     }}
     .header-bar .stMarkdown p {{
-        color: {NEW_COLOR_PALETTE["text_secondary"]};
+        color: {COLOR_PALETTE["light_green"]}; /* Verde pastel para o subtítulo */
         margin: 0;
         font-size: 0.9rem;
     }}
@@ -72,17 +60,17 @@ st.markdown(f"""
         gap: 20px;
     }}
     .header-nav .stMarkdown p {{
-        color: {NEW_COLOR_PALETTE["link_color"]};
+        color: {COLOR_PALETTE["medium_green"]}; /* Verde médio para links */
         cursor: pointer;
         transition: color 0.2s;
     }}
     .header-nav .stMarkdown p:hover {{
-        color: {NEW_COLOR_PALETTE["link_hover"]};
+        color: {COLOR_PALETTE["white"]}; /* Branco no hover */
     }}
 
-    /* Seção "Começar Processamento" (com a cor "Musgo Esverdeado") */
+    /* Seção "Começar Processamento" */
     .start-processing-section {{
-        background-color: {NEW_COLOR_PALETTE["start_processing_bg"]};
+        background-color: {COLOR_PALETTE["medium_green"]}; /* Verde médio-claro */
         padding: 40px;
         text-align: center;
         border-radius: 10px;
@@ -90,20 +78,20 @@ st.markdown(f"""
         box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }}
     .start-processing-section h2 {{
-        color: {NEW_COLOR_PALETTE["header_bar_bg"]}; /* Um verde mais escuro para contraste */
+        color: {COLOR_PALETTE["darkest_green"]}; /* Verde muito escuro */
         font-size: 2rem;
         font-weight: 700;
         margin-bottom: 10px;
     }}
     .start-processing-section p {{
-        color: {NEW_COLOR_PALETTE["header_bar_bg"]};
+        color: {COLOR_PALETTE["darkest_green"]};
         font-size: 1.1rem;
     }}
 
     /* Estilo para os cards de conteúdo */
     .card {{
-        background-color: {NEW_COLOR_PALETTE["card_background"]};
-        border: 1px solid {NEW_COLOR_PALETTE["card_border"]};
+        background-color: {COLOR_PALETTE["white"]};
+        border: 1px solid {COLOR_PALETTE["light_green"]}; /* Borda verde pastel */
         border-radius: 10px;
         padding: 25px;
         box-shadow: 0 4px 8px rgba(0,0,0,0.05);
@@ -112,7 +100,7 @@ st.markdown(f"""
 
     /* TÍTULO PRINCIPAL (st.title) */
     h1 {{
-        color: {NEW_COLOR_PALETTE["header_bar_bg"]};
+        color: {COLOR_PALETTE["darkest_green"]};
         font-weight: 700;
         font-size: 2.5rem;
         padding-bottom: 0.3em;
@@ -120,7 +108,7 @@ st.markdown(f"""
 
     /* CABEÇALHOS (st.header) E SUB-CABEÇALHOS (st.subheader) */
     h2, h3 {{
-        color: {NEW_COLOR_PALETTE["header_bar_bg"]};
+        color: {COLOR_PALETTE["darkest_green"]};
         font-weight: 600;
         border: none;
         padding-bottom: 0px;
@@ -131,20 +119,19 @@ st.markdown(f"""
         margin-bottom: 1rem;
     }}
 
-    /* Cor do texto principal dentro dos cards */
+    /* Cor do texto principal dentro dos cards e outros elementos */
     body, p, label, .stMarkdown {{
-        color: {NEW_COLOR_PALETTE["header_bar_bg"]} !important; /* Texto escuro para contraste no card */
+        color: {COLOR_PALETTE["gray_text"]} !important; /* Cinza escuro para legibilidade em fundo claro */
     }}
     /* Sobrescreve para o texto no fundo principal */
     .stApp > header, .stApp > div:first-child > div:nth-child(2) > div.stMarkdown, .stApp > div:first-child > div:nth-child(2) > p {{
-        color: {NEW_COLOR_PALETTE["text_main"]} !important;
+        color: {COLOR_PALETTE["darkest_green"]} !important;
     }}
-
 
     /* Estilo para os botões */
     .stButton>button {{
-        background-color: {NEW_COLOR_PALETTE["button_bg"]};
-        color: {NEW_COLOR_PALETTE["text_main"]};
+        background-color: {COLOR_PALETTE["dark_green"]}; /* Verde médio-escuro */
+        color: {COLOR_PALETTE["white"]};
         border-radius: 8px;
         border: none;
         padding: 10px 24px;
@@ -152,25 +139,25 @@ st.markdown(f"""
         transition: background-color 0.2s;
     }}
     .stButton>button:hover {{
-        background-color: {NEW_COLOR_PALETTE["button_hover"]};
-        color: {NEW_COLOR_PALETTE["header_text"]};
+        background-color: {COLOR_PALETTE["darkest_green"]}; /* Verde mais escuro no hover */
+        color: {COLOR_PALETTE["white"]};
     }}
 
     /* Estilo para a barra lateral */
     [data-testid="stSidebar"] {{
-        background-color: {NEW_COLOR_PALETTE["sidebar_bg"]};
-        border-right: 1px solid {NEW_COLOR_PALETTE["card_border"]};
+        background-color: {COLOR_PALETTE["light_green"]}; /* Verde pastel/claro */
+        border-right: 1px solid {COLOR_PALETTE["dark_green"]};
     }}
     [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {{
-        color: {NEW_COLOR_PALETTE["sidebar_text"]};
+        color: {COLOR_PALETTE["darkest_green"]};
     }}
     [data-testid="stSidebar"] .stMarkdown p, [data-testid="stSidebar"] label {{
-        color: {NEW_COLOR_PALETTE["text_secondary"]} !important;
+        color: {COLOR_PALETTE["gray_text"]} !important;
     }}
 
     /* Cor do texto do expander (Relatório de Processamento) */
     .st-emotion-cache-115fcme summary, .st-emotion-cache-115fcme button {{
-        color: {NEW_COLOR_PALETTE["header_bar_bg"]} !important;
+        color: {COLOR_PALETTE["darkest_green"]} !important;
         font-weight: 600;
         font-size: 1.25rem;
     }}
@@ -179,45 +166,46 @@ st.markdown(f"""
     .stAlert[data-baseweb="alert"] > div {{
         border-radius: 8px;
     }}
-    .stAlert.stAlert_success {{ background-color: {NEW_COLOR_PALETTE["alert_success_bg"]}; color: {NEW_COLOR_PALETTE["alert_success_text"]}; border-color: {NEW_COLOR_PALETTE["alert_success_border"]}; }}
-    .stAlert.stAlert_warning {{ background-color: {NEW_COLOR_PALETTE["alert_warning_bg"]}; color: {NEW_COLOR_PALETTE["alert_warning_text"]}; border-color: {NEW_COLOR_PALETTE["alert_warning_border"]}; }}
-    .stAlert.stAlert_info {{ background-color: {NEW_COLOR_PALETTE["alert_info_bg"]}; color: {NEW_COLOR_PALETTE["alert_info_text"]}; border-color: {NEW_COLOR_PALETTE["alert_info_border"]}; }}
-    .stAlert.stAlert_error {{ background-color: {NEW_COLOR_PALETTE["alert_error_bg"]}; color: {NEW_COLOR_PALETTE["alert_error_text"]}; border-color: {NEW_COLOR_PALETTE["alert_error_border"]}; }}
+    /* Cores de alerta padrão, ajustadas para melhor contraste na nova paleta */
+    .stAlert.stAlert_success {{ background-color: #d4edda; color: #155724; border-color: #c3e6cb; }}
+    .stAlert.stAlert_warning {{ background-color: #fff3cd; color: #856404; border-color: #ffeeba; }}
+    .stAlert.stAlert_info {{ background-color: #d1ecf1; color: #0c5460; border-color: #bee5eb; }}
+    .stAlert.stAlert_error {{ background-color: #f8d7da; color: #721c24; border-color: #f5c6cb; }}
 
     /* FORÇAR TEMA CLARO NA TABELA (DATAFRAME) */
     [data-testid="stDataFrame"] {{
-        border: 1px solid {NEW_COLOR_PALETTE["card_border"]};
+        border: 1px solid {COLOR_PALETTE["light_green"]};
         border-radius: 8px;
     }}
     [data-testid="stDataFrame"] .col-header {{
-        background-color: {NEW_COLOR_PALETTE["dataframe_header_bg"]} !important;
+        background-color: {COLOR_PALETTE["light_green"]} !important;
     }}
     [data-testid="stDataFrame"] .col-header-cell {{
-        color: {NEW_COLOR_PALETTE["text_main"]} !important;
+        color: {COLOR_PALETTE["darkest_green"]} !important;
         font-weight: 600;
     }}
     [data-testid="stDataFrame"] .data-cell {{
-        background-color: {NEW_COLOR_PALETTE["card_background"]} !important;
-        color: {NEW_COLOR_PALETTE["dataframe_text"]} !important;
-        border-color: {NEW_COLOR_PALETTE["card_border"]} !important;
+        background-color: {COLOR_PALETTE["white"]} !important;
+        color: {COLOR_PALETTE["gray_text"]} !important;
+        border-color: {COLOR_PALETTE["light_green"]} !important;
     }}
 
     /* Campo de upload de arquivo no corpo principal */
-    .upload-area-main .stFileUploader > div:first-child {{ /* Target the inner div of stFileUploader */
-        background-color: {NEW_COLOR_PALETTE["card_background"]};
-        border: 2px dashed {NEW_COLOR_PALETTE["button_bg"]}; /* Borda tracejada "Verde Artesão" */
+    .upload-area-main .stFileUploader > div:first-child {{
+        background-color: {COLOR_PALETTE["white"]};
+        border: 2px dashed {COLOR_PALETTE["dark_green"]}; /* Borda tracejada verde médio */
         border-radius: 10px;
         padding: 30px;
         text-align: center;
-        color: {NEW_COLOR_PALETTE["header_bar_bg"]}; /* Texto escuro */
+        color: {COLOR_PALETTE["gray_text"]};
     }}
     .upload-area-main .stFileUploader > div:first-child svg {{
-        color: {NEW_COLOR_PALETTE["button_bg"]}; /* Ícone "Verde Artesão" */
+        color: {COLOR_PALETTE["dark_green"]}; /* Ícone verde médio */
     }}
 
     /* Títulos dentro de cards */
     .card .st-emotion-cache-cnjvw7 h2, .card .st-emotion-cache-cnjvw7 h3 {{
-        color: {NEW_COLOR_PALETTE["header_bar_bg"]};
+        color: {COLOR_PALETTE["darkest_green"]};
     }}
 
     /* Para o st.radio horizontal */
@@ -410,7 +398,7 @@ def to_excel(df):
 
 # --- INTERFACE ---
 
-# Layout da barra de cabeçalho (topo da página, como na Image 1)
+# Layout da barra de cabeçalho (topo da página)
 st.markdown(f"""
 <div class="header-bar">
     <div>
@@ -426,16 +414,15 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 
-# Sidebar - Mantida com as suas opções originais, mas mais compacta
+# Sidebar
 with st.sidebar:
     st.header("Configurações")
     st.info("Utilize as opções abaixo para configurar o processamento.", icon="⚙️")
     state_file = st.text_input("Nome do arquivo de estado:", "estado_sequenciais.json", key="state_file_input")
     st.info("Salva os contadores sequenciais para evitar códigos duplicados.", icon="💾")
-    # Removendo o uploader da sidebar para movê-lo para a área principal
 
 
-# Seção "Começar Processamento" (similar ao bloco amarelo da Image 1)
+# Seção "Começar Processamento"
 with st.container():
     st.markdown('<div class="start-processing-section">', unsafe_allow_html=True)
     st.header("Começar Processamento")
@@ -443,13 +430,11 @@ with st.container():
     st.markdown('</div>', unsafe_allow_html=True)
 
 
-# Main Content Area
-# Área de Upload de Arquivo BOM (agora funcional e estilizada)
+# Main Content Area - Área de Upload de Arquivo BOM
 with card_container():
     st.subheader("Upload de Arquivo BOM")
     st.write("Faça upload do arquivo TXT ou XLSX exportado do SolidWorks.")
     
-    # O st.file_uploader agora está aqui, no corpo principal
     uploaded_file = st.file_uploader(
         "Clique ou arraste um arquivo",
         type=['txt','xlsx'],
@@ -476,7 +461,7 @@ else:
 
                 with tab_relatorio:
                     with card_container():
-                        st.subheader("Detalhes do Processamento") # Título dentro do card
+                        st.subheader("Detalhes do Processamento")
                         for log in report:
                             if "✔️" in log or "✅" in log: st.success(log)
                             elif "⚠️" in log: st.warning(log)
@@ -500,8 +485,8 @@ else:
     except Exception as e:
         st.error(f"Ocorreu um erro inesperado: {e}")
 
-# Seção de "Recursos" (inferior, como na Image 1)
-st.markdown("---") # Linha separadora
+# Seção de "Recursos" (inferior)
+st.markdown("---")
 col_auto, col_flex = st.columns(2)
 with col_auto:
     with card_container():
