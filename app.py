@@ -7,7 +7,7 @@ from datetime import datetime
 # --- CONFIGURAÇÃO DA PÁGINA E ESTILO ---
 st.set_page_config(layout="wide", page_title="Gerador de Códigos de Itens")
 
-# Estilo CSS com títulos destacados e maior robustez visual
+# Estilo CSS com a paleta de cores final
 st.markdown("""
 <style>
     /* Cor de fundo principal */
@@ -25,13 +25,13 @@ st.markdown("""
     }
     /* Estilo para os títulos com maior destaque */
     h1 {
-        color: #0a2540; /* Azul-marinho escuro para o título principal */
+        color: #333333; /* Cinza escuro para o título principal */
         font-weight: 700;
-        border-bottom: 3px solid #0a2540;
+        border-bottom: 3px solid #333333;
         padding-bottom: 10px;
     }
     h2, h3 {
-        color: #2a6f97; /* Azul mais vibrante para subtítulos */
+        color: #556b2f; /* Verde musgo escuro para subtítulos (palha/pastel) */
         font-weight: 700;
         border-bottom: 2px solid #e0e0e0;
         padding-bottom: 8px;
@@ -60,11 +60,16 @@ st.markdown("""
         border-right: 1px solid #e0e0e0;
     }
     [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {
-        color: #2a6f97;
+        color: #556b2f;
         border-bottom: none; /* Sem borda na barra lateral */
     }
     [data-testid="stSidebar"] .stMarkdown p, [data-testid="stSidebar"] label {
         color: #000000 !important; /* Texto preto para contraste */
+    }
+    /* Cor do texto do expander (Relatório de Processamento) */
+    .st-emotion-cache-115fcme summary {
+        color: #556b2f !important;
+        font-weight: 700;
     }
     /* Cores do relatório */
     .stAlert[data-baseweb="alert"] > div {
