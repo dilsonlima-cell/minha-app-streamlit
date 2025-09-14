@@ -9,7 +9,7 @@ from datetime import datetime
 # --- CONFIGURAÇÃO DA PÁGINA E ESTILO ---
 st.set_page_config(layout="wide", page_title="Gerador de Códigos de Itens")
 
-# Estilo CSS atualizado com base no novo layout
+# Estilo CSS refinado para corresponder à imagem de referência
 st.markdown("""
 <style>
     /* Cor de fundo principal */
@@ -25,18 +25,29 @@ st.markdown("""
         box-shadow: 0 4px 8px rgba(0,0,0,0.05);
         margin-bottom: 25px;
     }
-    /* Estilo para os títulos */
+
+    /* TÍTULO PRINCIPAL (st.title) */
     h1 {
         color: #0d3b66; /* Azul corporativo escuro */
         font-weight: 700;
-        padding-bottom: 10px;
+        font-size: 2.5rem; /* Aumenta o tamanho */
+        padding-bottom: 0.3em; /* Espaçamento sutil */
     }
+
+    /* CABEÇALHOS (st.header) E SUB-CABEÇALHOS (st.subheader) */
     h2, h3 {
         color: #0d3b66; /* Azul corporativo escuro */
         font-weight: 600;
-        padding-bottom: 8px;
-        margin-top: 20px;
+        border: none; /* Remove qualquer borda */
+        padding-bottom: 0px; /* Remove padding */
+        margin-top: 0px; /* Remove margem superior */
     }
+    
+    /* Garante que o H2 dentro do card tenha espaçamento */
+    .card h2 {
+        margin-bottom: 1rem;
+    }
+
     /* Cor do texto principal */
     body, p, label, .stMarkdown {
         color: #212529 !important; /* Texto preto/cinza escuro */
@@ -68,6 +79,7 @@ st.markdown("""
     .st-emotion-cache-115fcme summary {
         color: #0d3b66 !important;
         font-weight: 600;
+        font-size: 1.25rem; /* Alinha com o tamanho do H2 */
     }
     /* Cores do relatório */
     .stAlert[data-baseweb="alert"] > div {
