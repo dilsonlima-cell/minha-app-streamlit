@@ -149,15 +149,22 @@ def process_codes(df):
         return pd.DataFrame(), []
 
     report_log = []
-    df['CÓDIGO FINAL'] = df['Nº DA PEÇA']
+    # **NOVO**: Inicia a coluna com 'nulo' como valor padrão para todos os itens.
+    df['CÓDIGO FINAL'] = 'nulo'
     
     sequentials = {}
     group_pattern = re.compile(r'(\d{3})')
 
+    # Define os padrões de código com base na norma
+    manufactured_pattern = re.compile(r'^\d{2}-\d{4}-\d{4}-\d{2}$')
+    commercial_pattern = re.compile(r'^\d{3}-\d{4}$')
+
+    # Pré-scan para encontrar os sequenciais comerciais mais altos já existentes
     for index, row in df.iterrows():
-        if re.match(r'^\d{3}-\d{4}$', str(row['Nº DA PEÇA'])):
+        numero_peca = str(row['Nº DA PEÇA'])
+        if commercial_pattern.match(numero_peca):
              try:
-                parts = str(row['Nº DA PEÇA']).split('-')
+                parts = numero_peca.split('-')
                 group, seq = parts[0], int(parts[1])
                 if group not in sequentials or seq > sequentials[group]:
                     sequentials[group] = seq
@@ -166,11 +173,23 @@ def process_codes(df):
 
     report_log.append(f"Sequenciais iniciais detectados: {sequentials if sequentials else 'Nenhum'}")
 
+    # Loop de processamento principal
     for index, row in df.iterrows():
-        if row['PROCESSO'] == 'Comercial':
-            if re.match(r'^\d{3}-\d{4}$', str(row['Nº DA PEÇA'])):
-                 continue
+        numero_peca = str(row['Nº DA PEÇA'])
 
+        # Condição 1: É um item fabricado com código válido?
+        if manufactured_pattern.match(numero_peca):
+            df.loc[index, 'CÓDIGO FINAL'] = numero_peca
+            continue
+
+        # Condição 2: É um item comercial?
+        if row['PROCESSO'] == 'Comercial':
+            # Se já tiver um código comercial válido, mantém.
+            if commercial_pattern.match(numero_peca):
+                df.loc[index, 'CÓDIGO FINAL'] = numero_peca
+                continue
+
+            # Se não, tenta gerar um novo código.
             group_match = group_pattern.search(str(row['GRUPO DE PRODUTO']))
             if group_match:
                 group_code = group_match.group(1)
@@ -182,16 +201,21 @@ def process_codes(df):
                 df.loc[index, 'CÓDIGO FINAL'] = new_code
                 report_log.append(f"✔️ Item '{row['TÍTULO']}' recebeu o novo código: {new_code}")
             else:
-                df.loc[index, 'CÓDIGO FINAL'] = 'ERRO: GRUPO AUSENTE'
-                report_log.append(f"⚠️ Alerta: Item '{row['TÍTULO']}' é 'Comercial' mas a coluna 'GRUPO DE PRODUTO' está vazia ou inválida. Código não gerado.")
+                # Se não há grupo, o código permanece 'nulo'.
+                report_log.append(f"⚠️ Alerta: Item '{row['TÍTULO']}' é 'Comercial' mas não possui 'GRUPO DE PRODUTO'. Código não gerado (nulo).")
 
-    df_fabricado = df[df['PROCESSO'] != 'Comercial']
-    df_comercial = df[df['PROCESSO'] == 'Comercial']
+    # **NOVO**: Lógica de ordenação aprimorada
+    def get_code_type(code):
+        if manufactured_pattern.match(str(code)):
+            return 1  # Fabricado
+        if commercial_pattern.match(str(code)):
+            return 2  # Comercial
+        return 3      # Nulo/Outro
+
+    df['TIPO_CODIGO'] = df['CÓDIGO FINAL'].apply(get_code_type)
     
-    df_final = pd.concat([
-        df_fabricado.sort_values(by='Nº DA PEÇA'), 
-        df_comercial.sort_values(by='CÓDIGO FINAL')
-    ], ignore_index=True)
+    df_final = df.sort_values(by=['TIPO_CODIGO', 'CÓDIGO FINAL']).reset_index(drop=True)
+    df_final = df_final.drop(columns=['TIPO_CODIGO']) # Remove coluna auxiliar
     
     num_codes_generated = len([log for log in report_log if 'recebeu o novo código' in log])
     report_log.insert(0, f"✅ Processamento concluído. {num_codes_generated} novos códigos comerciais foram gerados.")
@@ -286,5 +310,6 @@ else:
                     st.markdown('</div>', unsafe_allow_html=True)
     except Exception as e:
         st.error(f"Ocorreu um erro inesperado durante o processamento: {e}")
+
 
 
