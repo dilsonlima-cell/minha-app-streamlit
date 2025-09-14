@@ -54,33 +54,54 @@ def process_codes(df):
     return df
 
 
+def load_file(uploaded_file):
+    """
+    Carrega Excel ou TXT automaticamente.
+    """
+    if uploaded_file.name.endswith(".xlsx"):
+        return pd.read_excel(uploaded_file)
+
+    elif uploaded_file.name.endswith(".txt"):
+        # Tenta detectar o separador automaticamente
+        try:
+            return pd.read_csv(uploaded_file, sep=None, engine="python")
+        except Exception:
+            # fallback para tabulação
+            return pd.read_csv(uploaded_file, sep="\t")
+
+    else:
+        st.error("❌ Formato de arquivo não suportado. Envie .xlsx ou .txt")
+        return None
+
+
 # =============================
 # Aplicação Streamlit
 # =============================
 
 st.title("📊 Classificação Hierárquica de Itens")
 
-uploaded_file = st.file_uploader("Envie seu arquivo Excel", type=["xlsx"])
+uploaded_file = st.file_uploader("Envie seu arquivo (.xlsx ou .txt)", type=["xlsx", "txt"])
 
 if uploaded_file:
-    df = pd.read_excel(uploaded_file)
+    df = load_file(uploaded_file)
 
-    st.subheader("📋 Dados Originais")
-    st.dataframe(df.head(20))
+    if df is not None:
+        st.subheader("📋 Dados Originais")
+        st.dataframe(df.head(20))
 
-    # Processar hierarquia
-    df_processado = process_codes(df)
+        # Processar hierarquia
+        df_processado = process_codes(df)
 
-    st.subheader("✅ Dados Processados")
-    st.dataframe(df_processado.head(20))
+        st.subheader("✅ Dados Processados")
+        st.dataframe(df_processado.head(20))
 
-    # Download do resultado
-    output_file = "dados_processados.xlsx"
-    df_processado.to_excel(output_file, index=False)
-    with open(output_file, "rb") as f:
-        st.download_button(
-            label="📥 Baixar arquivo processado",
-            data=f,
-            file_name=output_file,
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+        # Download do resultado
+        output_file = "dados_processados.xlsx"
+        df_processado.to_excel(output_file, index=False)
+        with open(output_file, "rb") as f:
+            st.download_button(
+                label="📥 Baixar arquivo processado",
+                data=f,
+                file_name=output_file,
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
