@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import io
 import re
+import json
+import os
 from datetime import datetime
 from contextlib import contextmanager
 
@@ -89,6 +91,47 @@ st.markdown(f"""
 </style>
 """, unsafe_allow_html=True)
 
+# --- PERSISTÊNCIA DE ESTADO ---
+ESTADO_FILE = "estado_sequenciais.json"
+
+def carregar_estado():
+    if os.path.exists(ESTADO_FILE):
+        try:
+            with open(ESTADO_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                # garante inteiros
+                return {str(k): int(v) for k, v in data.items()}
+        except Exception:
+            return {}
+    return {}
+
+def salvar_estado(sequentials):
+    safe = {str(k): int(v) for k, v in sequentials.items() if isinstance(v, (int, float))}
+    with open(ESTADO_FILE, "w", encoding="utf-8") as f:
+        json.dump(safe, f, ensure_ascii=False, indent=4)
+
+def construir_codigos_existentes(estado):
+    # Monta set de códigos já gerados: XXX-YYYYYY de 1..ultimo_seq
+    existentes = set()
+    for grupo, ultimo in estado.items():
+        try:
+            ultimo = int(ultimo)
+        except:
+            continue
+        for seq in range(1, ultimo + 1):
+            existentes.add(f"{grupo}-{str(seq).zfill(6)}")
+    return existentes
+
+def verificar_duplicatas(df, estado):
+    existentes = construir_codigos_existentes(estado)
+    repetidos = []
+    # Considera somente formato comercial XXX-YYYYYY
+    padrao = re.compile(r'^\d{3}-\d{6}$')
+    for codigo in df['Nº DA PEÇA'].astype(str):
+        if padrao.match(codigo) and codigo in existentes:
+            repetidos.append(codigo)
+    return sorted(set(repetidos))
+
 # --- FUNÇÃO AUXILIAR PARA CARD ---
 @contextmanager
 def card_container():
@@ -143,11 +186,17 @@ def process_codes(df, sequentials):
         return pd.DataFrame(), []
 
     report_log = []
-    report_log.append(f"ℹ️ Sequenciais carregados manualmente: {sequentials}")
+    estado = carregar_estado()
+
+    # Mescla manual vs persistido: usar o maior
+    for g in sequentials:
+        sequentials[g] = max(int(sequentials[g]), int(estado.get(g, 0)))
+
+    report_log.append(f"ℹ️ Sequenciais carregados manualmente (ajustados pelo histórico): {sequentials}")
 
     group_pattern = re.compile(r'(\d{3})')
     manufactured_pattern = re.compile(r'^\d{2}-\d{4}-\d{4}-.*')
-    commercial_pattern = re.compile(r'^\d{3}-\d{4}$')
+    commercial_pattern = re.compile(r'^\d{3}-\d{6}$')  # 3 + 6 dígitos
 
     # Preencher processo
     for i, row in df.iterrows():
@@ -156,38 +205,43 @@ def process_codes(df, sequentials):
 
     df['CÓDIGO FINAL'] = 'NULO'
 
-    # Ajusta sequenciais com base nos códigos já existentes
+    # Ajusta sequenciais com base nos códigos já existentes no arquivo (XXX-YYYYYY)
     for _, row in df.iterrows():
-        num = str(row['Nº DA PEÇA'])
+        num = str(row['Nº DA PEÇA']).strip()
         if commercial_pattern.match(num):
             try:
                 group, seq = num.split('-')
                 seq = int(seq)
-                if group not in sequentials or seq > sequentials[group]:
+                if group not in sequentials or seq > int(sequentials[group]):
                     sequentials[group] = seq
             except:
                 continue
     report_log.append(f"Sequenciais ajustados com base no arquivo: {sequentials}")
 
     # Geração dos códigos
+    novos_codigos = 0
     for i, row in df.iterrows():
         if row['PROCESSO'] == 'FABRICADO':
             df.loc[i, 'CÓDIGO FINAL'] = row['Nº DA PEÇA']
             continue
         if row['PROCESSO'] == 'COMERCIAL':
-            num = str(row['Nº DA PEÇA'])
+            num = str(row['Nº DA PEÇA']).strip()
             if commercial_pattern.match(num):
                 df.loc[i, 'CÓDIGO FINAL'] = num
                 continue
             m = group_pattern.search(str(row['GRUPO DE PRODUTO']))
             if m:
                 g = m.group(1)
-                sequentials[g] = sequentials.get(g, 0) + 1
-                new_code = f"{g}-{sequentials[g]:04d}"
+                sequentials[g] = int(sequentials.get(g, 0)) + 1
+                new_code = f"{g}-{str(sequentials[g]).zfill(6)}"
                 df.loc[i, 'CÓDIGO FINAL'] = new_code
                 report_log.append(f"✔️ '{row['TÍTULO']}' recebeu código: {new_code}")
+                novos_codigos += 1
             else:
                 report_log.append(f"⚠️ '{row['TÍTULO']}' COMERCIAL sem grupo -> NULO")
+
+    # Salva estado atualizado com os maiores sequenciais por grupo
+    salvar_estado(sequentials)
 
     # Hierarquia pai-filho
     df['Nº DO ITEM'] = df['Nº DO ITEM'].astype(str).str.strip()
@@ -216,9 +270,7 @@ def process_codes(df, sequentials):
     for col in df.select_dtypes(include=['object']):
         df[col] = df[col].astype(str).str.upper()
 
-    num_codes_generated = len([log for log in report_log if '✔️' in log])
-    report_log.insert(0, f"✅ Processamento concluído. {num_codes_generated} novos códigos comerciais foram gerados.")
-
+    report_log.insert(0, f"✅ Processamento concluído. {novos_codigos} novos códigos comerciais foram gerados.")
     return df, report_log
 
 @st.cache_data
@@ -248,6 +300,11 @@ with st.sidebar:
     st.header("1. Carregar Arquivo")
     uploaded_file = st.file_uploader("Selecione arquivo TXT ou XLSX", type=['txt','xlsx'])
 
+# Contador do histórico
+estado_atual = carregar_estado()
+total_existentes = sum(int(v) for v in estado_atual.values()) if estado_atual else 0
+st.info(f"📊 Histórico: {total_existentes} códigos já registrados em estado_sequenciais.json.")
+
 # --- TABELA DE GRUPOS (MANUAL) ---
 st.header("Tabela de Grupos – Próximo Código")
 
@@ -276,7 +333,7 @@ for g, desc in group_table.items():
     cols[1].write(desc)
     sequentials[g] = cols[2].number_input(
         f"Próximo código para grupo {g}",
-        min_value=0, value=0, step=1,
+        min_value=0, value=int(estado_atual.get(g, 0)), step=1,
         key=f"seq_{g}"
     )
 
@@ -295,32 +352,43 @@ else:
             if df_raw is None:
                 st.error(f"❌ {msg}")
             else:
-                df_proc, report = process_codes(df_raw.copy(), sequentials)
+                # Verifica duplicatas contra o histórico antes de processar
+                repetidos = verificar_duplicatas(df_raw, carregar_estado())
+                if repetidos:
+                    st.error("🚫 O arquivo contém códigos comerciais já existentes no histórico (evitando duplicação).")
+                    st.write(", ".join(repetidos))
+                else:
+                    df_proc, report = process_codes(df_raw.copy(), sequentials)
 
-                tab_relatorio, tab_dados = st.tabs(["📄 Relatório de Processamento", "📊 Lista de Peças Atualizada"])
+                    tab_relatorio, tab_dados = st.tabs(["📄 Relatório de Processamento", "📊 Lista de Peças Atualizada"])
 
-                with tab_relatorio:
-                    with card_container():
-                        st.subheader("Detalhes do Processamento")
-                        for log in report:
-                            if "✔️" in log or "✅" in log: st.success(log)
-                            elif "⚠️" in log: st.warning(log)
-                            else: st.info(log)
+                    with tab_relatorio:
+                        with card_container():
+                            st.subheader("Detalhes do Processamento")
+                            for log in report:
+                                if "✔️" in log or "✅" in log: st.success(log)
+                                elif "⚠️" in log: st.warning(log)
+                                else: st.info(log)
 
-                with tab_dados:
-                    with card_container():
-                        st.subheader("Dados Processados")
-                        sort_option = st.radio("Classificar por:", ("Padrão","GRUPO DE PRODUTO","PROCESSO"), horizontal=True)
-                        df_show = df_proc if sort_option=="Padrão" else df_proc.sort_values(by=sort_option, kind='mergesort').reset_index(drop=True)
-                        st.dataframe(df_show, use_container_width=True)
+                    with tab_dados:
+                        with card_container():
+                            st.subheader("Dados Processados")
+                            sort_option = st.radio("Classificar por:", ("Padrão","GRUPO DE PRODUTO","PROCESSO"), horizontal=True)
+                            df_show = df_proc if sort_option=="Padrão" else df_proc.sort_values(by=sort_option, kind='mergesort').reset_index(drop=True)
+                            st.dataframe(df_show, use_container_width=True)
 
-                        st.subheader("Exportar Resultados")
-                        t = datetime.now().strftime("%Y%m%d_%H%M%S")
-                        c1,c2 = st.columns(2)
-                        with c1:
-                            st.download_button("📥 Exportar para Excel", to_excel(df_show), f"lista_codificada_{t}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-                        with c2:
-                            st.download_button("📥 Exportar para CSV", df_show.to_csv(index=False).encode("utf-8"), f"lista_codificada_{t}.csv", mime="text/csv")
+                            st.subheader("Exportar Resultados")
+                            t = datetime.now().strftime("%Y%m%d_%H%M%S")
+                            c1,c2 = st.columns(2)
+                            with c1:
+                                st.download_button("📥 Exportar para Excel", to_excel(df_show), f"lista_codificada_{t}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                            with c2:
+                                st.download_button("📥 Exportar para CSV", df_show.to_csv(index=False).encode("utf-8"), f"lista_codificada_{t}.csv", mime="text/csv")
+
+                    # Limpa os campos de "Próximo Código" após processamento
+                    for g in group_table.keys():
+                        st.session_state[f"seq_{g}"] = 0
+
     except Exception as e:
         st.error(f"Ocorreu um erro inesperado: {e}")
 
