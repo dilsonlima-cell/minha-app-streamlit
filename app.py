@@ -11,7 +11,7 @@ from contextlib import contextmanager
 STATE_FILE = "estado_sequenciais.json"
 MAX_SEQ = 999_999  # 6 dígitos máximo
 
-# --- Estética (mantive a sua paleta/estilo) ---
+# --- Estilo (mantive sua paleta) ---
 COLOR_PALETTE = {
     "dark_green": "#255000",
     "medium_green": "#588100",
@@ -45,7 +45,7 @@ def card_container():
     yield
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- Funções JSON ---
+# --- JSON helpers ---
 def load_sequentials(file_path=STATE_FILE):
     if os.path.exists(file_path):
         with open(file_path, "r", encoding="utf-8") as f:
@@ -59,7 +59,7 @@ def save_sequentials(data, file_path=STATE_FILE):
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
 
-# --- Leitura de arquivo TXT/XLSX ---
+# --- load file helper ---
 @st.cache_data
 def load_data(uploaded_file):
     if uploaded_file is None:
@@ -74,7 +74,6 @@ def load_data(uploaded_file):
             return df, "Arquivo XLSX lido com sucesso."
 
         content = uploaded_file.getvalue().decode('utf-8').splitlines()
-        # assume cabeçalho na última linha (como seu arquivo de exemplo)
         header = [h.strip() for h in content[-1].split('\t')]
         data_lines = content[:-1]
         parsed_data = []
@@ -95,7 +94,7 @@ def load_data(uploaded_file):
     except Exception as e:
         return None, f"Erro ao ler o arquivo: {e}"
 
-# --- Processamento dos códigos ---
+# --- process logic (mesma lógica, formato XXX-000001) ---
 def process_codes(df, sequentials, json_state):
     if df is None or df.empty:
         return pd.DataFrame(), []
@@ -104,13 +103,12 @@ def process_codes(df, sequentials, json_state):
     report_log.append(f"ℹ️ Sequenciais informados (manual): {sequentials}")
     report_log.append(f"📂 Sequenciais (JSON): {json_state}")
 
-    # Prioriza o maior entre digitado e JSON
+    # usa o maior entre digitado e JSON
     for g in list(sequentials.keys()):
         sequentials[g] = max(int(sequentials[g]), int(json_state.get(g, 0)))
 
     group_pattern = re.compile(r'(\d{3})')
     manufactured_pattern = re.compile(r'^\d{2}-\d{4}-\d{4}-.*')
-    # aceitar quaisquer dígitos após o hífen para ler sequenciais antigos; geraremos novos com 6 dígitos fixos
     commercial_pattern = re.compile(r'^\d{3}-(\d+)$')
 
     # preencher PROCESSO
@@ -120,7 +118,7 @@ def process_codes(df, sequentials, json_state):
 
     df['CÓDIGO FINAL'] = 'NULO'
 
-    # Ajusta sequenciais com base nos códigos já existentes na BOM (qualquer comprimento de sequencial)
+    # atualiza sequenciais com base em códigos existentes na BOM
     for _, row in df.iterrows():
         num = str(row.get('Nº DA PEÇA',''))
         m = commercial_pattern.match(num)
@@ -133,7 +131,7 @@ def process_codes(df, sequentials, json_state):
                 continue
     report_log.append(f"Sequenciais depois de ler a BOM: {sequentials}")
 
-    # Geração dos códigos (formato XXX-000001, 6 dígitos) garantindo unicidade e limite
+    # gera códigos (XXX-000001)
     for i, row in df.iterrows():
         if row['PROCESSO'] == 'FABRICADO':
             df.loc[i, 'CÓDIGO FINAL'] = row.get('Nº DA PEÇA', '')
@@ -142,7 +140,6 @@ def process_codes(df, sequentials, json_state):
         num = str(row.get('Nº DA PEÇA',''))
         m_direct = commercial_pattern.match(num)
         if m_direct and len(m_direct.group(1)) == 6:
-            # já está no formato 6 dígitos
             df.loc[i, 'CÓDIGO FINAL'] = num
             continue
 
@@ -150,13 +147,11 @@ def process_codes(df, sequentials, json_state):
         if m:
             g = m.group(1)
             next_code = int(sequentials.get(g, 0)) + 1
-            # procura próximo código livre, mas respeita o limite de 6 dígitos
             while True:
                 if next_code > MAX_SEQ:
                     report_log.append(f"❌ Limite excedido para o grupo {g}. Sequencial alcançou {next_code} (> {MAX_SEQ}).")
-                    raise Exception(f"Limite de 6 dígitos atingido para o grupo {g}. Pare a operação e reveja o estado.")
+                    raise Exception(f"Limite de 6 dígitos atingido para o grupo {g}.")
                 candidate = f"{g}-{next_code:06d}"
-                # não gerar duplicado considerando códigos já atribuídos
                 if candidate not in df['CÓDIGO FINAL'].values:
                     break
                 next_code += 1
@@ -167,7 +162,7 @@ def process_codes(df, sequentials, json_state):
         else:
             report_log.append(f"⚠️ '{row.get('TÍTULO','')}' COMERCIAL sem grupo -> NULO")
 
-    # Hierarquia pai-filho (procura código do pai pelo Nº DO ITEM)
+    # hierarquia pai-filho
     df['Nº DO ITEM'] = df['Nº DO ITEM'].astype(str).str.strip()
     code_map = pd.Series(df['CÓDIGO FINAL'].values, index=df['Nº DO ITEM']).to_dict()
     def find_parent_code(item_id):
@@ -181,7 +176,7 @@ def process_codes(df, sequentials, json_state):
     df['CÓDIGO PAI'] = df['Nº DO ITEM'].apply(lambda x: find_parent_code(x) or "")
     report_log.append("Hierarquia pai-filho processada.")
 
-    # Ordenação e formatação
+    # ordena e uppercase
     def get_tipo(row):
         if row['PROCESSO'] == 'FABRICADO': return 1
         if row['PROCESSO'] == 'COMERCIAL' and row['CÓDIGO FINAL'] != 'NULO': return 2
@@ -191,13 +186,12 @@ def process_codes(df, sequentials, json_state):
     for col in df.select_dtypes(include=['object']):
         df[col] = df[col].astype(str).str.upper()
 
-    # salvar estado final no JSON (sequenciais são numéricos)
+    # salva JSON com os novos sequenciais
     save_sequentials({k:int(v) for k,v in sequentials.items()})
     report_log.append("💾 Sequenciais atualizados no estado_sequenciais.json")
 
     num_codes_generated = len([l for l in report_log if l.startswith("✔️")])
     report_log.insert(0, f"✅ Processamento concluído. {num_codes_generated} novos códigos comerciais foram gerados.")
-
     return df, report_log
 
 @st.cache_data
@@ -226,7 +220,7 @@ with st.sidebar:
     st.header("1. Carregar Arquivo")
     uploaded_file = st.file_uploader("Selecione arquivo TXT ou XLSX", type=['txt','xlsx'])
 
-# tabela de grupos (norma)
+# tabela de grupos
 group_table = {
     "100": "Mecânico",
     "200": "Elétrico",
@@ -240,20 +234,14 @@ group_table = {
     "950": "Serviço"
 }
 
-# Carrega estado JSON antes de criar widgets
+# carrega JSON antes de criar widgets
 json_state = load_sequentials()
 
-# Se foi solicitada limpeza (flag), faça o reset ANTES de criar os widgets
-if st.session_state.get("reset_after_process", False):
-    for g in group_table.keys():
-        st.session_state[f"seq_{g}"] = 0
-    st.session_state["reset_after_process"] = False  # limpa flag
+# versão para keys (permite "reset" criando novos keys)
+if "version" not in st.session_state:
+    st.session_state["version"] = 0
 
-# Inicializa chaves no session_state com valores do JSON se ainda não existirem
-for g in group_table.keys():
-    key = f"seq_{g}"
-    if key not in st.session_state:
-        st.session_state[key] = int(json_state.get(g, 0))
+version = int(st.session_state["version"])
 
 st.header("Tabela de Grupos – Próximo Código (6 dígitos máximo)")
 cols = st.columns([1,2,2])
@@ -261,14 +249,13 @@ cols[0].markdown("**Grupo**")
 cols[1].markdown("**Descrição**")
 cols[2].markdown("**Próximo Código**")
 
-# cria widgets (sem atribuir o retorno diretamente a session_state)
+# cria widgets com keys versionadas (não atribuímos session_state[...] = ...)
 for g, desc in group_table.items():
     c0, c1, c2 = st.columns([1,2,2])
     c0.write(g)
     c1.write(desc)
-    key = f"seq_{g}"
-    init_val = int(st.session_state.get(key, 0))
-    # NÃO fazer: st.session_state[key] = c2.number_input(...)
+    key = f"seq_{g}_v{version}"
+    init_val = int(st.session_state.get(key, json_state.get(g, 0)))
     c2.number_input(
         f"Próximo código para grupo {g}",
         min_value=0,
@@ -278,46 +265,56 @@ for g, desc in group_table.items():
         key=key
     )
 
+# callbacks
+def increment_version():
+    st.session_state["version"] = st.session_state.get("version", 0) + 1
+
+# ações (botões)
 st.markdown('<div class="start-processing-section">', unsafe_allow_html=True)
 st.header("Começar Processamento")
-st.write("Faça upload do arquivo TXT/XLSX exportado do SolidWorks e configure os grupos acima.")
+st.write("Configure os grupos acima e clique em Processar.")
 st.markdown('</div>', unsafe_allow_html=True)
 
-if not uploaded_file:
-    st.info("Aguardando upload de um arquivo para começar...", icon="👆")
-else:
+c_proc, c_reset = st.columns([1,1])
+process_clicked = c_proc.button("Processar")
+reset_clicked = c_reset.button("Resetar inputs (limpar)")
+
+if reset_clicked:
+    increment_version()  # clicar o botão já causa rerun automático, então widgets serão recriados com nova versão
+
+if process_clicked:
+    # coleta sequenciais atuais do conjunto de widgets versionado
+    sequentials = {g: int(st.session_state.get(f"seq_{g}_v{version}", 0)) for g in group_table.keys()}
     try:
-        with st.spinner("Processando..."):
-            df_raw, msg = load_data(uploaded_file)
-            if df_raw is None:
-                st.error(f"❌ {msg}")
-            else:
-                # cria dicionário de sequenciais baseado nos valores atuais dos widgets (session_state)
-                sequentials = {g: int(st.session_state.get(f"seq_{g}", 0)) for g in group_table.keys()}
-                df_proc, report = process_codes(df_raw.copy(), sequentials, json_state)
-
-                # salvar resultados em session_state para mostrar após rerun
-                st.session_state["last_report"] = report
-                st.session_state["last_df_csv"] = df_proc.to_csv(index=False).encode("utf-8")
-                st.session_state["last_df_excel"] = to_excel(df_proc)
-                # sinalizar reset e reiniciar (para limpar widgets sem erro)
-                st.session_state["reset_after_process"] = True
-                st.experimental_rerun()
-
+        df_raw, msg = load_data(uploaded_file)
+        if df_raw is None:
+            st.error(msg)
+        else:
+            df_proc, report = process_codes(df_raw.copy(), sequentials, json_state)
+            # salva resultados na sessão para exibir imediatamente
+            st.session_state["last_report"] = report
+            st.session_state["last_df_csv"] = df_proc.to_csv(index=False).encode("utf-8")
+            st.session_state["last_df_excel"] = to_excel(df_proc)
+            # sugerir ao usuário reset manual (opcional)
+            st.success("Processamento concluído. Veja o relatório abaixo. Se quiser limpar os inputs, clique em 'Resetar inputs'.")
     except Exception as e:
-        st.error(f"Ocorreu um erro inesperado: {e}")
+        st.error(f"Ocorreu um erro durante o processamento: {e}")
 
-# Se existir relatório guardado (vindo de uma execução anterior), mostre-o e permita download
+# mostra último relatório se existir
 if st.session_state.get("last_report"):
     with card_container():
         st.subheader("Último Relatório de Processamento")
-        for log in st.session_state.get("last_report", []):
-            if "✔️" in log or "✅" in log: st.success(log)
-            elif "⚠️" in log: st.warning(log)
-            elif "❌" in log: st.error(log)
-            else: st.info(log)
+        for log in st.session_state["last_report"]:
+            if log.startswith("✔️") or log.startswith("✅"):
+                st.success(log)
+            elif log.startswith("⚠️"):
+                st.warning(log)
+            elif log.startswith("❌"):
+                st.error(log)
+            else:
+                st.info(log)
 
-    # mostrar tabela processada (reconstruída do CSV salvo)
+    # mostra tabela e permite download
     if st.session_state.get("last_df_csv"):
         df_show = pd.read_csv(io.BytesIO(st.session_state["last_df_csv"]))
         with card_container():
@@ -332,15 +329,7 @@ if st.session_state.get("last_report"):
             with c2:
                 st.download_button("📥 Baixar CSV", st.session_state["last_df_csv"], f"lista_codificada_{t}.csv", mime="text/csv")
 
-    # botão para limpar o relatório exibido
-    if st.button("Limpar relatório exibido / resultados"):
-        st.session_state["last_report"] = None
-        st.session_state["last_df_csv"] = None
-        st.session_state["last_df_excel"] = None
-        st.experimental_rerun()
-
-# Rodapé / Export
 st.markdown("---")
 with card_container():
     st.markdown("<h2>Exportação</h2>", unsafe_allow_html=True)
-    st.write("Os arquivos gerados ficam disponíveis para download após o processamento (na próxima execução).")
+    st.write("Os arquivos gravados ficam disponíveis para download após o processamento.")
