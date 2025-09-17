@@ -169,7 +169,7 @@ def process_codes(df, sequentials):
                 continue
     report_log.append(f"Sequenciais ajustados com base no arquivo: {sequentials}")
 
-    # Geração dos códigos (garantindo unicidade)
+    # Geração dos códigos
     for i, row in df.iterrows():
         if row['PROCESSO'] == 'FABRICADO':
             df.loc[i, 'CÓDIGO FINAL'] = row['Nº DA PEÇA']
@@ -182,11 +182,7 @@ def process_codes(df, sequentials):
             m = group_pattern.search(str(row['GRUPO DE PRODUTO']))
             if m:
                 g = m.group(1)
-                next_code = sequentials.get(g, 0) + 1
-                # 🔒 Garante que não repete código já usado
-                while f"{g}-{next_code:04d}" in df['CÓDIGO FINAL'].values:
-                    next_code += 1
-                sequentials[g] = next_code
+                sequentials[g] = sequentials.get(g, 0) + 1
                 new_code = f"{g}-{sequentials[g]:04d}"
                 df.loc[i, 'CÓDIGO FINAL'] = new_code
                 report_log.append(f"✔️ '{row['TÍTULO']}' recebeu código: {new_code}")
@@ -300,10 +296,6 @@ else:
                 st.error(f"❌ {msg}")
             else:
                 df_proc, report = process_codes(df_raw.copy(), sequentials)
-
-                # 🔄 Limpa os campos após o processamento
-                for g in group_table.keys():
-                    st.session_state[f"seq_{g}"] = 0
 
                 tab_relatorio, tab_dados = st.tabs(["📄 Relatório de Processamento", "📊 Lista de Peças Atualizada"])
 
