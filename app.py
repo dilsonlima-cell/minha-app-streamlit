@@ -11,6 +11,12 @@ from contextlib import contextmanager
 STATE_FILE = "estado_sequenciais.json"
 MAX_SEQ = 999_999  # 6 dígitos máximo
 
+# Colunas que o sistema espera e irá garantir que existam.
+COLUNAS_OBRIGATORIAS = [
+    'Nº DO ITEM', 'Nº DA PEÇA', 'TÍTULO', 'QTD.', 
+    'PROCESSO', 'GRUPO DE PRODUTO'
+]
+
 # --- Estilo (mantive sua paleta) ---
 COLOR_PALETTE = {
     "dark_green": "#255000",
@@ -59,51 +65,76 @@ def save_sequentials(data, file_path=STATE_FILE):
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
 
-# --- load file helper ---
+# --- load file helper (MELHORADO) ---
 @st.cache_data
 def load_data(uploaded_file):
     if uploaded_file is None:
-        return None, "Nenhum arquivo carregado."
+        return None, [], "Nenhum arquivo carregado."
+    
+    report_log = []
+    df = None
+    
     try:
         name = uploaded_file.name.lower()
         if name.endswith(".xlsx"):
             df = pd.read_excel(uploaded_file)
-            for col in ['Nº DA PEÇA','PROCESSO','GRUPO DE PRODUTO','TÍTULO', 'Nº DO ITEM']:
-                if col not in df.columns:
-                    df[col] = ''
-            return df, "Arquivo XLSX lido com sucesso."
+            msg = "Arquivo XLSX lido com sucesso."
+        elif name.endswith(".txt"):
+            content = uploaded_file.getvalue().decode('utf-8').splitlines()
+            header = [h.strip() for h in content[-1].split('\t')]
+            data_lines = content[:-1]
+            parsed_data = []
+            for line in data_lines:
+                if line.strip():
+                    cells = [cell.strip() for cell in line.split('\t')]
+                    # Garante que cada linha tenha o mesmo número de colunas que o cabeçalho
+                    parsed_data.append(cells + [''] * (len(header) - len(cells)))
+            df = pd.DataFrame(parsed_data, columns=header)
+            df = df.iloc[::-1].reset_index(drop=True)
+            msg = "Arquivo TXT lido com sucesso."
+        else:
+            return None, [], "Formato de arquivo não suportado."
 
-        content = uploaded_file.getvalue().decode('utf-8').splitlines()
-        header = [h.strip() for h in content[-1].split('\t')]
-        data_lines = content[:-1]
-        parsed_data = []
-        for line in data_lines:
-            if line.strip():
-                cells = [cell.strip() for cell in line.split('\t')]
-                while len(cells) < len(header):
-                    cells.append('')
-                parsed_data.append(cells[:len(header)])
-        df = pd.DataFrame(parsed_data, columns=header)
-        df = df.iloc[::-1].reset_index(drop=True)
-        for col in ['Nº DA PEÇA','PROCESSO','GRUPO DE PRODUTO','TÍTULO', 'Nº DO ITEM']:
-            if col not in df.columns:
+        # --- Lógica de verificação de colunas ---
+        colunas_originais = set(df.columns)
+        colunas_obrigatorias_set = set(COLUNAS_OBRIGATORIAS)
+
+        colunas_ausentes = colunas_obrigatorias_set - colunas_originais
+        colunas_extras = colunas_originais - colunas_obrigatorias_set
+
+        if colunas_ausentes:
+            report_log.append(f"⚠️ Colunas ausentes (criadas com valores vazios): **{', '.join(sorted(list(colunas_ausentes)))}**")
+            for col in sorted(list(colunas_ausentes)):
                 df[col] = ''
+        else:
+            report_log.append("✅ Nenhuma coluna obrigatória ausente.")
+
+        if colunas_extras:
+            report_log.append(f"ℹ️ Colunas extras encontradas (serão mantidas): **{', '.join(sorted(list(colunas_extras)))}**")
+        
+        # Garante o tipo numérico para QTD, se existir ou for criada
         if 'QTD.' in df.columns:
             df['QTD.'] = pd.to_numeric(df['QTD.'], errors='coerce').fillna(0)
-        return df, "Arquivo TXT lido com sucesso."
+
+        # Reordena o DataFrame para ter as colunas obrigatórias primeiro
+        ordem_final = COLUNAS_OBRIGATORIAS + sorted(list(colunas_extras))
+        df = df[ordem_final]
+        
+        return df, report_log, msg
+
     except Exception as e:
-        return None, f"Erro ao ler o arquivo: {e}"
+        return None, [], f"Erro ao ler o arquivo: {e}"
 
-# --- process logic (mesma lógica, formato XXX-000001) ---
-def process_codes(df, sequentials, json_state):
+# --- process logic (MELHORADO) ---
+def process_codes(df, sequentials, json_state, column_report):
     if df is None or df.empty:
-        return pd.DataFrame(), []
+        return pd.DataFrame(), [], "DataFrame vazio."
 
-    report_log = []
+    report_log = list(column_report) # Inicia o relatório com a análise das colunas
+    report_log.append("--- Início do Processamento de Códigos ---")
     report_log.append(f"ℹ️ Sequenciais informados (manual): {sequentials}")
     report_log.append(f"📂 Sequenciais (JSON): {json_state}")
-
-    # usa o maior entre digitado e JSON
+    
     for g in list(sequentials.keys()):
         sequentials[g] = max(int(sequentials[g]), int(json_state.get(g, 0)))
 
@@ -111,14 +142,25 @@ def process_codes(df, sequentials, json_state):
     manufactured_pattern = re.compile(r'^\d{2}-\d{4}-\d{4}-.*')
     commercial_pattern = re.compile(r'^\d{3}-(\d+)$')
 
-    # preencher PROCESSO
-    for i, row in df.iterrows():
-        df.loc[i, 'PROCESSO'] = 'FABRICADO' if manufactured_pattern.match(str(row.get('Nº DA PEÇA',''))) else 'COMERCIAL'
-    report_log.append("Coluna 'PROCESSO' preenchida automaticamente.")
+    # --- Preenchimento condicional de PROCESSO (MELHORADO) ---
+    df['PROCESSO'] = df['PROCESSO'].astype(str).str.strip().str.upper()
+    # Identifica as linhas onde PROCESSO está vazio ou contém valores nulos/espaços
+    linhas_vazias = df['PROCESSO'].isin(['', 'NAN', None]) | pd.isna(df['PROCESSO'])
+    
+    count_preenchido = 0
+    for i in df[linhas_vazias].index:
+        is_manufactured = manufactured_pattern.match(str(df.loc[i, 'Nº DA PEÇA']))
+        df.loc[i, 'PROCESSO'] = 'FABRICADO' if is_manufactured else 'COMERCIAL'
+        count_preenchido += 1
+    
+    if count_preenchido > 0:
+        report_log.append(f"✔️ Coluna 'PROCESSO' preenchida para **{count_preenchido}** itens que estavam vazios.")
+    else:
+        report_log.append("ℹ️ Nenhum valor vazio encontrado na coluna 'PROCESSO' para preenchimento.")
+
 
     df['CÓDIGO FINAL'] = 'NULO'
-
-    # atualiza sequenciais com base em códigos existentes na BOM
+    
     for _, row in df.iterrows():
         num = str(row.get('Nº DA PEÇA',''))
         m = commercial_pattern.match(num)
@@ -131,7 +173,6 @@ def process_codes(df, sequentials, json_state):
                 continue
     report_log.append(f"Sequenciais depois de ler a BOM: {sequentials}")
 
-    # gera códigos (XXX-000001)
     for i, row in df.iterrows():
         if row['PROCESSO'] == 'FABRICADO':
             df.loc[i, 'CÓDIGO FINAL'] = row.get('Nº DA PEÇA', '')
@@ -162,7 +203,6 @@ def process_codes(df, sequentials, json_state):
         else:
             report_log.append(f"⚠️ '{row.get('TÍTULO','')}' COMERCIAL sem grupo -> NULO")
 
-    # hierarquia pai-filho
     df['Nº DO ITEM'] = df['Nº DO ITEM'].astype(str).str.strip()
     code_map = pd.Series(df['CÓDIGO FINAL'].values, index=df['Nº DO ITEM']).to_dict()
     def find_parent_code(item_id):
@@ -176,7 +216,6 @@ def process_codes(df, sequentials, json_state):
     df['CÓDIGO PAI'] = df['Nº DO ITEM'].apply(lambda x: find_parent_code(x) or "")
     report_log.append("Hierarquia pai-filho processada.")
 
-    # ordena e uppercase
     def get_tipo(row):
         if row['PROCESSO'] == 'FABRICADO': return 1
         if row['PROCESSO'] == 'COMERCIAL' and row['CÓDIGO FINAL'] != 'NULO': return 2
@@ -186,11 +225,10 @@ def process_codes(df, sequentials, json_state):
     for col in df.select_dtypes(include=['object']):
         df[col] = df[col].astype(str).str.upper()
 
-    # salva JSON com os novos sequenciais
     save_sequentials({k:int(v) for k,v in sequentials.items()})
     report_log.append("💾 Sequenciais atualizados no estado_sequenciais.json")
 
-    num_codes_generated = len([l for l in report_log if l.startswith("✔️")])
+    num_codes_generated = len([l for l in report_log if l.startswith("✔️ '")])
     report_log.insert(0, f"✅ Processamento concluído. {num_codes_generated} novos códigos comerciais foram gerados.")
     return df, report_log
 
@@ -220,27 +258,16 @@ with st.sidebar:
     st.header("1. Carregar Arquivo")
     uploaded_file = st.file_uploader("Selecione arquivo TXT ou XLSX", type=['txt','xlsx'])
 
-# tabela de grupos
 group_table = {
-    "100": "Mecânico",
-    "200": "Elétrico",
-    "300": "Hidráulico Água",
-    "400": "Hidráulico Óleo",
-    "500": "Pneumático",
-    "600": "Tecnologia",
-    "700": "Infraestrutura",
-    "800": "Insumos",
-    "900": "Segurança",
-    "950": "Serviço"
+    "100": "Mecânico", "200": "Elétrico", "300": "Hidráulico Água",
+    "400": "Hidráulico Óleo", "500": "Pneumático", "600": "Tecnologia",
+    "700": "Infraestrutura", "800": "Insumos", "900": "Segurança", "950": "Serviço"
 }
 
-# carrega JSON antes de criar widgets
 json_state = load_sequentials()
 
-# versão para keys (permite "reset" criando novos keys)
 if "version" not in st.session_state:
     st.session_state["version"] = 0
-
 version = int(st.session_state["version"])
 
 st.header("Tabela de Grupos – Próximo Código (6 dígitos máximo)")
@@ -249,7 +276,6 @@ cols[0].markdown("**Grupo**")
 cols[1].markdown("**Descrição**")
 cols[2].markdown("**Próximo Código**")
 
-# cria widgets com keys versionadas (não atribuímos session_state[...] = ...)
 for g, desc in group_table.items():
     c0, c1, c2 = st.columns([1,2,2])
     c0.write(g)
@@ -257,19 +283,13 @@ for g, desc in group_table.items():
     key = f"seq_{g}_v{version}"
     init_val = int(st.session_state.get(key, json_state.get(g, 0)))
     c2.number_input(
-        f"Próximo código para grupo {g}",
-        min_value=0,
-        max_value=MAX_SEQ,
-        value=init_val,
-        step=1,
-        key=key
+        f"Próximo código para grupo {g}", min_value=0, max_value=MAX_SEQ,
+        value=init_val, step=1, key=key, label_visibility="collapsed"
     )
 
-# callbacks
 def increment_version():
     st.session_state["version"] = st.session_state.get("version", 0) + 1
 
-# ações (botões)
 st.markdown('<div class="start-processing-section">', unsafe_allow_html=True)
 st.header("Começar Processamento")
 st.write("Configure os grupos acima e clique em Processar.")
@@ -280,54 +300,48 @@ process_clicked = c_proc.button("Processar")
 reset_clicked = c_reset.button("Resetar inputs (limpar)")
 
 if reset_clicked:
-    increment_version()  # clicar o botão já causa rerun automático, então widgets serão recriados com nova versão
+    increment_version()
+    st.rerun()
 
 if process_clicked:
-    # coleta sequenciais atuais do conjunto de widgets versionado
     sequentials = {g: int(st.session_state.get(f"seq_{g}_v{version}", 0)) for g in group_table.keys()}
     try:
-        df_raw, msg = load_data(uploaded_file)
+        df_raw, column_report, msg = load_data(uploaded_file)
         if df_raw is None:
             st.error(msg)
         else:
-            df_proc, report = process_codes(df_raw.copy(), sequentials, json_state)
-            # salva resultados na sessão para exibir imediatamente
+            df_proc, report = process_codes(df_raw.copy(), sequentials, json_state, column_report)
             st.session_state["last_report"] = report
             st.session_state["last_df_csv"] = df_proc.to_csv(index=False).encode("utf-8")
             st.session_state["last_df_excel"] = to_excel(df_proc)
-            # sugerir ao usuário reset manual (opcional)
-            st.success("Processamento concluído. Veja o relatório abaixo. Se quiser limpar os inputs, clique em 'Resetar inputs'.")
+            st.success("Processamento concluído. Veja o relatório e os dados abaixo.")
     except Exception as e:
         st.error(f"Ocorreu um erro durante o processamento: {e}")
 
-# mostra último relatório se existir
 if st.session_state.get("last_report"):
     with card_container():
-        st.subheader("Último Relatório de Processamento")
+        st.subheader("Relatório de Processamento")
         for log in st.session_state["last_report"]:
-            if log.startswith("✔️") or log.startswith("✅"):
-                st.success(log)
-            elif log.startswith("⚠️"):
-                st.warning(log)
-            elif log.startswith("❌"):
-                st.error(log)
-            else:
-                st.info(log)
+            if log.startswith("✔️") or log.startswith("✅"): st.success(log)
+            elif log.startswith("⚠️"): st.warning(log)
+            elif log.startswith("❌"): st.error(log)
+            else: st.info(log)
 
-    # mostra tabela e permite download
     if st.session_state.get("last_df_csv"):
         df_show = pd.read_csv(io.BytesIO(st.session_state["last_df_csv"]))
         with card_container():
-            st.subheader("Últimos Dados Processados")
-            sort_option = st.radio("Classificar por:", ("Padrão","GRUPO DE PRODUTO","PROCESSO"), horizontal=True, key="last_sort_radio")
-            df_display = df_show if sort_option=="Padrão" else df_show.sort_values(by=sort_option, kind='mergesort').reset_index(drop=True)
-            st.dataframe(df_display, use_container_width=True)
+            st.subheader("Dados Processados")
+            st.dataframe(df_show, use_container_width=True)
             t = datetime.now().strftime("%Y%m%d_%H%M%S")
             c1,c2 = st.columns(2)
-            with c1:
-                st.download_button("📥 Baixar Excel", st.session_state["last_df_excel"], f"lista_codificada_{t}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-            with c2:
-                st.download_button("📥 Baixar CSV", st.session_state["last_df_csv"], f"lista_codificada_{t}.csv", mime="text/csv")
+            c1.download_button(
+                "📥 Baixar Excel", st.session_state["last_df_excel"],
+                f"lista_codificada_{t}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+            c2.download_button(
+                "📥 Baixar CSV", st.session_state["last_df_csv"],
+                f"lista_codificada_{t}.csv", mime="text/csv"
+            )
 
 st.markdown("---")
 with card_container():
