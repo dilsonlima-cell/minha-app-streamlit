@@ -2,8 +2,6 @@ import streamlit as st
 import pandas as pd
 import io
 import re
-import json
-import os
 from datetime import datetime
 from contextlib import contextmanager
 
@@ -24,37 +22,70 @@ COLOR_PALETTE = {
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(layout="wide", page_title="SolidWorks BOM Processor")
 
-# --- FUNÇÕES JSON ---
-STATE_FILE = "estado_sequenciais.json"
-
-def load_sequentials(file_path=STATE_FILE):
-    if os.path.exists(file_path):
-        with open(file_path, "r") as f:
-            try:
-                return json.load(f)
-            except json.JSONDecodeError:
-                return {}
-    return {}
-
-def save_sequentials(data, file_path=STATE_FILE):
-    with open(file_path, "w") as f:
-        json.dump(data, f, indent=4)
-
 # --- ESTILO CSS ---
 st.markdown(f"""
 <style>
-    .stApp {{ background-color: {COLOR_PALETTE["off_white_bg"]}; color: {COLOR_PALETTE["dark_gray_text"]}; }}
-    .header-bar {{ background-color: {COLOR_PALETTE["dark_green"]}; padding: 10px 50px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
-    .header-bar h1, .header-bar .stMarkdown p {{ color: {COLOR_PALETTE["white"]}; margin: 0; }}
+    .stApp {{
+        background-color: {COLOR_PALETTE["off_white_bg"]};
+        color: {COLOR_PALETTE["dark_gray_text"]};
+    }}
+    .header-bar {{
+        background-color: {COLOR_PALETTE["dark_green"]};
+        padding: 10px 50px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }}
+    .header-bar h1, .header-bar .stMarkdown p {{
+        color: {COLOR_PALETTE["white"]};
+        margin: 0;
+    }}
     .header-nav {{ display: flex; gap: 20px; }}
-    .header-nav .stMarkdown p {{ color: {COLOR_PALETTE["light_yellow_green"]}; cursor: pointer; transition: color 0.2s; }}
+    .header-nav .stMarkdown p {{
+        color: {COLOR_PALETTE["light_yellow_green"]};
+        cursor: pointer;
+        transition: color 0.2s;
+    }}
     .header-nav .stMarkdown p:hover {{ color: {COLOR_PALETTE["white"]}; }}
-    .start-processing-section {{ background-color: {COLOR_PALETTE["lime_green"]}; padding: 40px; text-align: center; border-radius: 10px; margin-bottom: 30px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }}
-    .card {{ background-color: {COLOR_PALETTE["white"]}; border: 1px solid {COLOR_PALETTE["light_gray_border"]}; border-radius: 10px; padding: 25px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); margin-bottom: 25px; }}
-    h1, h2, h3 {{ color: {COLOR_PALETTE["dark_green"]}; font-weight: 600; }}
-    .stButton>button {{ background-color: {COLOR_PALETTE["medium_green"]}; color: {COLOR_PALETTE["white"]}; border-radius: 8px; border: none; padding: 10px 24px; font-weight: 500; transition: background-color 0.2s; }}
-    .stButton>button:hover {{ background-color: {COLOR_PALETTE["button_hover"]}; color: {COLOR_PALETTE["white"]}; }}
-    [data-testid="stSidebar"] {{ background-color: {COLOR_PALETTE["light_yellow_green"]}; border-right: 1px solid #D9E1CC; }}
+    .start-processing-section {{
+        background-color: {COLOR_PALETTE["lime_green"]};
+        padding: 40px;
+        text-align: center;
+        border-radius: 10px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }}
+    .card {{
+        background-color: {COLOR_PALETTE["white"]};
+        border: 1px solid {COLOR_PALETTE["light_gray_border"]};
+        border-radius: 10px;
+        padding: 25px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+        margin-bottom: 25px;
+    }}
+    h1, h2, h3 {{
+        color: {COLOR_PALETTE["dark_green"]};
+        font-weight: 600;
+    }}
+    .stButton>button {{
+        background-color: {COLOR_PALETTE["medium_green"]};
+        color: {COLOR_PALETTE["white"]};
+        border-radius: 8px;
+        border: none;
+        padding: 10px 24px;
+        font-weight: 500;
+        transition: background-color 0.2s;
+    }}
+    .stButton>button:hover {{
+        background-color: {COLOR_PALETTE["button_hover"]};
+        color: {COLOR_PALETTE["white"]};
+    }}
+    [data-testid="stSidebar"] {{
+        background-color: {COLOR_PALETTE["light_yellow_green"]};
+        border-right: 1px solid #D9E1CC;
+    }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -66,8 +97,10 @@ def card_container():
     st.markdown('</div>', unsafe_allow_html=True)
 
 # --- FUNÇÕES AUXILIARES ---
+
 @st.cache_data
 def load_data(uploaded_file):
+    """Lê TXT (tabulado) ou XLSX e converte para DataFrame."""
     if uploaded_file is None:
         return None, "Nenhum arquivo carregado."
     try:
@@ -78,6 +111,7 @@ def load_data(uploaded_file):
                     df[col] = ''
             return df, "Arquivo XLSX lido com sucesso."
 
+        # TXT tabulado
         content = uploaded_file.getvalue().decode('utf-8').splitlines()
         header = [h.strip() for h in content[-1].split('\t')]
         data_lines = content[:-1]
@@ -104,42 +138,38 @@ def load_data(uploaded_file):
     except Exception as e:
         return None, f"Erro ao ler o arquivo: {e}"
 
-def process_codes(df, sequentials, json_state):
+def process_codes(df, sequentials):
     if df is None or df.empty:
         return pd.DataFrame(), []
 
     report_log = []
     report_log.append(f"ℹ️ Sequenciais carregados manualmente: {sequentials}")
-    report_log.append(f"📂 Sequenciais do arquivo JSON: {json_state}")
-
-    # Priorizar o maior valor (digitado ou do JSON)
-    for g in sequentials:
-        sequentials[g] = max(sequentials[g], json_state.get(g, 0))
 
     group_pattern = re.compile(r'(\d{3})')
     manufactured_pattern = re.compile(r'^\d{2}-\d{4}-\d{4}-.*')
-    commercial_pattern = re.compile(r'^\d{3}-\d{6}$')  # agora 6 dígitos
+    commercial_pattern = re.compile(r'^\d{3}-\d{4}$')
 
+    # Preencher processo
     for i, row in df.iterrows():
         df.loc[i, 'PROCESSO'] = 'FABRICADO' if manufactured_pattern.match(str(row['Nº DA PEÇA'])) else 'COMERCIAL'
     report_log.append("Coluna 'PROCESSO' preenchida automaticamente.")
 
     df['CÓDIGO FINAL'] = 'NULO'
 
-    # Atualizar sequenciais com base nos códigos já existentes
+    # Ajusta sequenciais com base nos códigos já existentes
     for _, row in df.iterrows():
         num = str(row['Nº DA PEÇA'])
         if commercial_pattern.match(num):
             try:
                 group, seq = num.split('-')
                 seq = int(seq)
-                sequentials[group] = max(sequentials.get(group, 0), seq)
+                if group not in sequentials or seq > sequentials[group]:
+                    sequentials[group] = seq
             except:
                 continue
+    report_log.append(f"Sequenciais ajustados com base no arquivo: {sequentials}")
 
-    report_log.append(f"Sequenciais ajustados após leitura da BOM: {sequentials}")
-
-    # Geração dos códigos (unicidade garantida, 6 dígitos fixos)
+    # Geração dos códigos (garantindo unicidade)
     for i, row in df.iterrows():
         if row['PROCESSO'] == 'FABRICADO':
             df.loc[i, 'CÓDIGO FINAL'] = row['Nº DA PEÇA']
@@ -153,10 +183,11 @@ def process_codes(df, sequentials, json_state):
             if m:
                 g = m.group(1)
                 next_code = sequentials.get(g, 0) + 1
-                while f"{g}-{next_code:06d}" in df['CÓDIGO FINAL'].values:
+                # 🔒 Garante que não repete código já usado
+                while f"{g}-{next_code:04d}" in df['CÓDIGO FINAL'].values:
                     next_code += 1
                 sequentials[g] = next_code
-                new_code = f"{g}-{sequentials[g]:06d}"
+                new_code = f"{g}-{sequentials[g]:04d}"
                 df.loc[i, 'CÓDIGO FINAL'] = new_code
                 report_log.append(f"✔️ '{row['TÍTULO']}' recebeu código: {new_code}")
             else:
@@ -188,9 +219,6 @@ def process_codes(df, sequentials, json_state):
 
     for col in df.select_dtypes(include=['object']):
         df[col] = df[col].astype(str).str.upper()
-
-    save_sequentials(sequentials)  # salvar atualização
-    report_log.append("💾 Sequenciais atualizados no estado_sequenciais.json")
 
     num_codes_generated = len([log for log in report_log if '✔️' in log])
     report_log.insert(0, f"✅ Processamento concluído. {num_codes_generated} novos códigos comerciais foram gerados.")
@@ -271,8 +299,7 @@ else:
             if df_raw is None:
                 st.error(f"❌ {msg}")
             else:
-                json_state = load_sequentials()
-                df_proc, report = process_codes(df_raw.copy(), sequentials, json_state)
+                df_proc, report = process_codes(df_raw.copy(), sequentials)
 
                 # 🔄 Limpa os campos após o processamento
                 for g in group_table.keys():
