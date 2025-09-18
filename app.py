@@ -39,12 +39,16 @@ st.markdown(f"""
 <style>
     /* --- GERAL --- */
     .stApp {{
-        background-color: #F0F2F6;
+        background-color: #7E8C54; /* Verde Musgo */
         color: #333;
     }}
     h1, h2, h3 {{
-        color: #2D2D2D !important;
+        color: #FFFFFF !important;
     }}
+    .card h1, .card h2, .card h3 {{
+        color: #2D2D2D !important; /* Mantém a cor escura dentro dos cards brancos */
+    }}
+
 
     /* --- BOTÕES --- */
     .stButton > button {{
@@ -73,7 +77,7 @@ st.markdown(f"""
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }}
     .dark-card {{
-        background-color: #2D2D2D;
+        background-color: #256D7B; /* Verde Azulado */
         border-radius: 8px;
         padding: 25px;
         color: #FFFFFF;
@@ -92,22 +96,23 @@ st.markdown(f"""
         font-weight: 700;
         margin: 0;
         line-height: 1.1;
+        color: #FFFFFF !important;
     }}
     .header-container p {{
         font-size: 1rem;
-        color: #555;
+        color: #E0E0E0;
         margin: 0;
     }}
 
     /* --- UPLOADER DE ARQUIVO --- */
     [data-testid="stFileUploader"] {{
-        background-color: #1E1E1E;
-        border: 2px dashed #444;
+        background-color: #256D7B; /* Verde Azulado */
+        border: 2px dashed #4E8A96;
         border-radius: 8px;
         padding: 20px;
     }}
     [data-testid="stFileUploader"] section {{
-        background-color: #1E1E1E;
+        background-color: #256D7B; /* Verde Azulado */
         color: #fff;
     }}
     [data-testid="stFileUploader"] label {{
@@ -137,23 +142,23 @@ st.markdown(f"""
     
     /* --- DATAFRAME --- */
     [data-testid="stDataFrame"] {{
-        background-color: #1E1E1E;
+        background-color: #256D7B; /* Verde Azulado */
         border-radius: 8px;
     }}
     [data-testid="stDataFrame"] table {{
         color: #E0E0E0;
     }}
     [data-testid="stDataFrame"] thead th {{
-        background-color: #101010;
+        background-color: #1A4A53; /* Tom mais escuro de Verde Azulado */
         color: #B3D10D;
         font-weight: bold;
         border-bottom: 2px solid #B3D10D;
     }}
     [data-testid="stDataFrame"] tbody tr:nth-of-type(even) {{
-        background-color: #282828;
+        background-color: #2F7C8A; /* Tom mais claro de Verde Azulado */
     }}
      [data-testid="stDataFrame"] tbody tr:nth-of-type(odd) {{
-        background-color: #1E1E1E;
+        background-color: #256D7B; /* Verde Azulado */
     }}
     [data-testid="stDataFrame"] tbody tr:hover td {{
         background-color: #404040;
@@ -453,3 +458,4 @@ if process_clicked:
             st.rerun()
         except Exception as e:
             st.error(f"Ocorreu um erro durante o processamento: {e}")
+
