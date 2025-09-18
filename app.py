@@ -9,7 +9,7 @@ from datetime import datetime
 # CONFIGURAÇÃO DA PÁGINA
 st.set_page_config(layout="wide", page_title="SolidWorks BOM Processor")
 
-# ESTILO VISUAL
+# ESTILO VISUAL PERSONALIZADO
 st.markdown("""
 <style>
     .main-container { display: flex; gap: 30px; }
@@ -50,8 +50,7 @@ with col_title:
     st.markdown("<h1>SOLIDWORKS BOM PROCESSOR</h1>", unsafe_allow_html=True)
     st.caption("PROCESSAMENTO AUTOMÁTICO DE LISTAS DE MATERIAIS EXPORTADAS DO SOLIDWORKS")
 st.markdown('</div>', unsafe_allow_html=True)
-
-# FUNÇÕES DE ESTADO
+# ARQUIVO DE ESTADO
 ESTADO_FILE = "estado_sequenciais.json"
 
 def carregar_estado():
@@ -100,7 +99,6 @@ def to_excel(df):
     with pd.ExcelWriter(out, engine='xlsxwriter') as w:
         df.to_excel(w, index=False, sheet_name='Lista de Peças')
     return out.getvalue()
-
 def process_codes(df, sequentials):
     estado = carregar_estado()
     for g in sequentials:
@@ -153,7 +151,6 @@ def process_codes(df, sequentials):
     for col in df.select_dtypes(include=['object']):
         df[col] = df[col].astype(str).str.upper()
     return df
-
 # INTERFACE PRINCIPAL
 estado_atual = carregar_estado()
 total_existentes = sum(estado_atual.values())
@@ -178,4 +175,52 @@ st.markdown(f"**Histórico:** {total_existentes} códigos já registrados.")
 st.markdown('</div>', unsafe_allow_html=True)
 
 # PAINEL DIREITO
-st.markdown('<div class="right-panel">', unsafe
+st.markdown('<div class="right-panel">', unsafe_allow_html=True)
+
+if uploaded_file:
+    df_raw, msg = load_data(uploaded_file)
+    if df_raw is None:
+        st.error(f"❌ {msg}")
+    else:
+        repetidos = verificar_duplicatas(df_raw, carregar_estado())
+        if repetidos:
+            st.error("🚫 O arquivo contém códigos comerciais já existentes no histórico.")
+            st.write(", ".join(repetidos))
+        else:
+            if st.button("🚀 Processar Lista"):
+                df_proc = process_codes(df_raw.copy(), sequentials)
+
+                st.subheader("📄 Relatório de Processamento")
+                st.success("✅ Processamento concluído com sucesso.")
+
+                st.subheader("📊 Dados Processados")
+                filtro = st.selectbox("Filtrar por:", ["Todos", "Grupo", "Processo", "Código"])
+                df_show = df_proc.copy()
+
+                if filtro == "Grupo":
+                    grupos = sorted(df_show['GRUPO DE PRODUTO'].unique())
+                    grupo_sel = st.selectbox("Selecione o grupo:", grupos)
+                    df_show = df_show[df_show['GRUPO DE PRODUTO'] == grupo_sel]
+                elif filtro == "Processo":
+                    proc_sel = st.selectbox("Selecione o processo:", ["FABRICADO", "COMERCIAL"])
+                    df_show = df_show[df_show['PROCESSO'] == proc_sel]
+                elif filtro == "Código":
+                    cod_sel = st.text_input("Digite parte do código:")
+                    df_show = df_show[df_show['CÓDIGO FINAL'].str.contains(cod_sel.upper())]
+
+                st.dataframe(df_show, use_container_width=True)
+
+                st.subheader("📤 Exportar Resultados")
+                t = datetime.now().strftime("%Y%m%d_%H%M%S")
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.download_button("📥 Excel", to_excel(df_show), f"lista_codificada_{t}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                with col2:
+                    st.download_button("📥 CSV", df_show.to_csv(index=False).encode("utf-8"), f"lista_codificada_{t}.csv", mime="text/csv")
+
+                # Limpa campos após processamento
+                for g in group_table.keys():
+                    st.session_state[f"seq_{g}"] = 0
+
+st.markdown('</div>', unsafe_allow_html=True)  # fecha right-panel
+st.markdown('</div>', unsafe_allow_html=True)  # fecha main-container
