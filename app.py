@@ -1,4 +1,3 @@
-# [INÍCIO DO CÓDIGO]
 import streamlit as st
 import pandas as pd
 import io
@@ -171,4 +170,12 @@ group_table = {
 }
 sequentials = {}
 for g, desc in group_table.items():
-    sequentials[g] = st.number_input(f"{g} – {desc}", min_value=0, value=estado_atual.get(g, 0),
+    sequentials[g] = st.number_input(f"{g} – {desc}", min_value=0, value=estado_atual.get(g, 0), step=1)
+
+st.subheader("📁 Carregar Arquivo")
+uploaded_file = st.file_uploader("Selecione um arquivo TXT ou XLSX", type=['txt','xlsx'])
+st.markdown(f"**Histórico:** {total_existentes} códigos já registrados.")
+st.markdown('</div>', unsafe_allow_html=True)
+
+# PAINEL DIREITO
+st.markdown('<div class="right-panel">', unsafe
