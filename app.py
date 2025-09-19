@@ -13,21 +13,32 @@ import time
 # --- CONFIGS ---
 MAX_SEQ = 999_999
 
-# --- CONEXÃO COM O FIREBASE ---
+# --- CONEXÃO COM O FIREBASE (VERSÃO CORRIGIDA) ---
 @st.cache_resource
 def initialize_firebase():
+    """Inicializa a conexão com o Firebase usando os Secrets do Streamlit."""
     if not firebase_admin._apps:
-        creds_dict = st.secrets["firebase_credentials"]
-        creds_dict['private_key'] = creds_dict['private_key'].replace('\\n', '\n')
-        cred = credentials.Certificate(creds_dict)
-        databaseURL = creds_dict['databaseURL']
+        # Pega as credenciais do secrets.toml
+        creds_original = st.secrets["firebase_credentials"]
+        
+        # Cria uma cópia para podermos modificar
+        creds_copy = dict(creds_original)
+        
+        # Modifica a cópia, e não o original
+        creds_copy['private_key'] = creds_copy['private_key'].replace('\\n', '\n')
+        
+        # Usa a cópia modificada para autenticar
+        cred = credentials.Certificate(creds_copy)
+        databaseURL = creds_copy['databaseURL']
+        
         firebase_admin.initialize_app(cred, {'databaseURL': databaseURL})
+        
     return db.reference('sequentials')
 
 db_ref = initialize_firebase()
 
 # --- LINHA DE DEPURAÇÃO TEMPORÁRIA ---
-# Esta linha vai nos mostrar na tela do app o que o Streamlit está lendo dos seus segredos.
+# Esta linha ainda está aqui para nos ajudar a verificar se os segredos foram lidos.
 st.write("Verificando segredos carregados:", st.secrets["firebase_credentials"])
 
 # --- JSON helpers (agora usando o Firebase) ---
@@ -47,9 +58,9 @@ COLUNAS_OBRIGATORIAS = [
     'PROCESSO', 'GRUPO DE PRODUTO'
 ]
 
-# --- Estilo (Ocultado para brevidade, seu CSS original vai aqui) ---
+# --- Estilo ---
 st.set_page_config(layout="wide", page_title="SolidWorks BOM Processor")
-# ... (todo o seu código de estilo CSS continua aqui) ...
+# ... (seu código de estilo CSS completo vai aqui) ...
 st.markdown(f"""
 <style>
     /* SEU CSS COMPLETO VAI AQUI */
@@ -58,8 +69,6 @@ st.markdown(f"""
 
 
 # --- FUNÇÕES DE LÓGICA (load_data, process_codes, etc.) ---
-# Nenhuma alteração nestas funções, elas continuam as mesmas.
-
 @st.cache_data
 def load_data(uploaded_file):
     if uploaded_file is None:
@@ -200,29 +209,5 @@ def to_excel(df):
 
 
 # --- Interface --- #
-# Nenhuma alteração na interface, apenas na lógica de carregamento dos dados
-# que agora usa load_sequentials_from_db()
-
-# --- HEADER ---
-# ... (Seu header original aqui) ...
-
-# --- MAIN LAYOUT ---
-col1, col2 = st.columns([1, 1.2])
-
-with col1:
-    with st.container():
-        # ... (Seu container de "Tabela de Grupos" aqui) ...
-        json_state = load_sequentials_from_db() # Linha importante
-        # ... (Resto do container) ...
-        
-    # ... (Resto da col1) ...
-
-with col2:
-    # ... (Toda a sua col2 original aqui) ...
-    pass # Apenas para o código ser válido
-
-
-# --- LÓGICA DE PROCESSAMENTO (quando o botão é clicado) ---
-# ... (Sua lógica de clique do botão aqui) ...
-# Apenas certifique-se que você está usando a função correta para carregar o estado
-# json_state = load_sequentials_from_db()
+# (Todo o seu código de interface original vai aqui, sem alterações necessárias)
+# ...
