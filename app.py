@@ -406,10 +406,10 @@ with col1:
              st.markdown('<div class="card">', unsafe_allow_html=True)
              st.subheader("Relatório de Processamento")
              for log in st.session_state["last_report"]:
-                if log.startswith("✔️") or log.startswith("✅"): st.markdown(f'<div class="report-item-success">{log}</div>', unsafe_allow_html=True)
-                elif log.startswith("⚠️"): st.markdown(f'<div class="report-item-warning">{log}</div>', unsafe_allow_html=True)
-                elif log.startswith("❌"): st.markdown(f'<div class="report-item-error">{log}</div>', unsafe_allow_html=True)
-                else: st.markdown(f'<div class="report-item-info">{log}</div>', unsafe_allow_html=True)
+                 if log.startswith("✔️") or log.startswith("✅"): st.markdown(f'<div class="report-item-success">{log}</div>', unsafe_allow_html=True)
+                 elif log.startswith("⚠️"): st.markdown(f'<div class="report-item-warning">{log}</div>', unsafe_allow_html=True)
+                 elif log.startswith("❌"): st.markdown(f'<div class="report-item-error">{log}</div>', unsafe_allow_html=True)
+                 else: st.markdown(f'<div class="report-item-info">{log}</div>', unsafe_allow_html=True)
              st.markdown('</div>', unsafe_allow_html=True)
 
 with col2:
@@ -418,23 +418,52 @@ with col2:
         uploaded_file = st.file_uploader("1. Carregar Arquivo", type=['txt', 'xlsx'], help="Arraste e solte ou clique para selecionar o arquivo TXT ou XLSX exportado do SolidWorks")
         st.markdown('</div>', unsafe_allow_html=True)
     
+    # <-- ALTERAÇÃO: Adicionar o seletor de colunas
+    # Ele só aparece se um arquivo for carregado e processado
+    if "available_columns" in st.session_state:
+        with st.container():
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            st.subheader("2. Selecionar Colunas para Exportar")
+            st.session_state.selected_columns = st.multiselect(
+                "Escolha as colunas que deseja incluir no arquivo final:",
+                options=st.session_state.available_columns,
+                default=st.session_state.get("selected_columns", st.session_state.available_columns) # Mantém as seleções anteriores
+            )
+            st.markdown('</div>', unsafe_allow_html=True)
+
     with st.container():
         st.markdown('<div class="card">', unsafe_allow_html=True)
         st.subheader("Exportação")
         st.write("Os arquivos gravados ficam disponíveis para download abaixo após o processamento.")
         st.markdown('</div>', unsafe_allow_html=True)
 
-    if "last_df_csv" in st.session_state:
+    if "last_df_processed" in st.session_state:
         with st.container():
             st.markdown('<div class="dark-card">', unsafe_allow_html=True)
             st.subheader("Dados Processados")
-            df_show = pd.read_csv(io.BytesIO(st.session_state["last_df_csv"]))
-            st.dataframe(df_show, use_container_width=True)
+            
+            # <-- ALTERAÇÃO: Filtrar o DataFrame com base nas colunas selecionadas
+            df_processed_full = pd.read_json(io.StringIO(st.session_state["last_df_processed"]), orient='split')
+            
+            # Garante que selected_columns existe antes de usar
+            selected_cols = st.session_state.get("selected_columns", df_processed_full.columns.tolist())
+            
+            # Filtra apenas as colunas que realmente existem no DataFrame para evitar erros
+            valid_selected_cols = [col for col in selected_cols if col in df_processed_full.columns]
+            
+            df_final_display = df_processed_full[valid_selected_cols]
+
+            st.dataframe(df_final_display, use_container_width=True)
 
             t = datetime.now().strftime("%Y%m%d_%H%M%S")
             dl_cols = st.columns(2)
-            dl_cols[0].download_button("Baixar Excel (.xlsx)", st.session_state["last_df_excel"], f"lista_codificada_{t}.xlsx")
-            dl_cols[1].download_button("Baixar CSV (.csv)", st.session_state["last_df_csv"], f"lista_codificada_{t}.csv")
+            
+            # <-- ALTERAÇÃO: Gerar arquivos de download com as colunas filtradas
+            excel_data = to_excel(df_final_display)
+            csv_data = df_final_display.to_csv(index=False).encode("utf-8")
+
+            dl_cols[0].download_button("Baixar Excel (.xlsx)", excel_data, f"lista_codificada_{t}.xlsx")
+            dl_cols[1].download_button("Baixar CSV (.csv)", csv_data, f"lista_codificada_{t}.csv")
             st.markdown('</div>', unsafe_allow_html=True)
 
 
@@ -452,11 +481,17 @@ if process_clicked:
                 else:
                     df_proc, report = process_codes(df_raw.copy(), sequentials, json_state, column_report)
                     st.session_state["last_report"] = report
-                    st.session_state["last_df_csv"] = df_proc.to_csv(index=False).encode("utf-8")
-                    st.session_state["last_df_excel"] = to_excel(df_proc)
+                    
+                    # <-- ALTERAÇÃO: Salvar o DataFrame completo e as colunas disponíveis
+                    # Usamos to_json para armazenar o DataFrame de forma eficiente no st.session_state
+                    st.session_state["last_df_processed"] = df_proc.to_json(orient='split', date_format='iso')
+                    st.session_state["available_columns"] = df_proc.columns.tolist()
+                    
+                    # <-- ALTERAÇÃO: Limpar dados antigos de download para evitar confusão
+                    if "last_df_csv" in st.session_state: del st.session_state["last_df_csv"]
+                    if "last_df_excel" in st.session_state: del st.session_state["last_df_excel"]
+
             st.success("Processamento concluído com sucesso!")
             st.rerun()
         except Exception as e:
             st.error(f"Ocorreu um erro durante o processamento: {e}")
-
-
