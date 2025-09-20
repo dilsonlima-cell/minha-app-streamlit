@@ -21,8 +21,6 @@ COLUNAS_OBRIGATORIAS = [
 st.set_page_config(layout="wide", page_title="SolidWorks BOM Processor")
 
 # Carregando a imagem do logo e convertendo para base64 para embutir no HTML
-# Substitua 'logo.png' pelo caminho real da sua imagem de logo se tiver o arquivo.
-# Caso não tenha, uma imagem placeholder será usada.
 def get_image_as_base64(path):
     try:
         with open(path, "rb") as f:
@@ -30,7 +28,7 @@ def get_image_as_base64(path):
         return base64.b64encode(data).decode()
     except IOError:
         # Retorna um SVG placeholder se a imagem não for encontrada
-        return "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCAyMDAgNTAiPgo8cGF0aCBmaWxsPSIjMDBBRUVGIiBkPSJNMjUsMEMxMS4xOSwwLDAsMTEuMTksMCwyNVMxMS4xOSw1MCwyNSw1MFM1MCwzOC44MSw1MCwyNVMyNSwwLDAsMjVaIE0yNSw0M0ExOCwxOCwwLDEsMSw0MywyNSwxOCwxOCwwLDAsMSwyNSw0M1oiLz4KPHRleHQgeD0iNjAiIHk9IjMzIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiMzMzMiPjxwcmVjaXNvPC90ZXh0Pgo8L3N2Zz4="
+        return "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCAyMDAgNTAiPgo8cGF0aCBmaWxsPSIjMDBBRUVGIiBkPSJNMjUsMEMxMS4xOSwwLDAsMTEuMTksMCwyNVMxMS4xOSw1MCwyNSw1MFM1MCwzOC4xMSw1MCwyNVMyNSwwLDAsMjVaIE0yNSw0M0ExOCwxOCwwLDEsMSw0MywyNSwxOCwxOCwwLDAsMSwyNSw0M1oiLz4KPHRleHQgeD0iNjAiIHk9IjMzIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiMzMzMiPjxwcmVjaXNvPC90ZXh0Pgo8L3N2Zz4="
 
 logo_base64 = get_image_as_base64("logo.png")
 
@@ -380,27 +378,6 @@ with col1:
         
         st.markdown('</div>', unsafe_allow_html=True)
         
-    with st.container():
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("Começar Processamento")
-        st.write("Configure os grupos acima e clique em Processar.")
-
-        def increment_version():
-            st.session_state["version"] += 1
-        
-        b_cols = st.columns(2)
-        with b_cols[0]:
-            st.markdown('<div class="btn-process">', unsafe_allow_html=True)
-            process_clicked = st.button("Processar", help="Inicia o processamento do arquivo carregado")
-            st.markdown('</div>', unsafe_allow_html=True)
-        with b_cols[1]:
-            st.markdown('<div class="btn-reset">', unsafe_allow_html=True)
-            if st.button("Resetar Inputs (Limpar)", on_click=increment_version, help="Limpa os campos de 'Próximo Código' para os valores salvos"):
-                st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
-
-        st.markdown('</div>', unsafe_allow_html=True)
-        
     if "last_report" in st.session_state:
         with st.container():
              st.markdown('<div class="card">', unsafe_allow_html=True)
@@ -418,37 +395,48 @@ with col2:
         uploaded_file = st.file_uploader("1. Carregar Arquivo", type=['txt', 'xlsx'], help="Arraste e solte ou clique para selecionar o arquivo TXT ou XLSX exportado do SolidWorks")
         st.markdown('</div>', unsafe_allow_html=True)
     
-    # <-- ALTERAÇÃO: Adicionar o seletor de colunas
-    # Ele só aparece se um arquivo for carregado e processado
+    # <-- ALTERAÇÃO INÍCIO: Botões movidos para a coluna 2 -->
+    with st.container():
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.subheader("2. Começar Processamento")
+        st.write("Configure os grupos à esquerda e clique em Processar.")
+
+        def increment_version():
+            st.session_state["version"] += 1
+        
+        b_cols = st.columns(2)
+        with b_cols[0]:
+            st.markdown('<div class="btn-process">', unsafe_allow_html=True)
+            process_clicked = st.button("Processar", help="Inicia o processamento do arquivo carregado")
+            st.markdown('</div>', unsafe_allow_html=True)
+        with b_cols[1]:
+            st.markdown('<div class="btn-reset">', unsafe_allow_html=True)
+            if st.button("Resetar Inputs (Limpar)", on_click=increment_version, help="Limpa os campos de 'Próximo Código' para os valores salvos"):
+                st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        st.markdown('</div>', unsafe_allow_html=True)
+    # <-- ALTERAÇÃO FIM -->
+
     if "available_columns" in st.session_state:
         with st.container():
             st.markdown('<div class="card">', unsafe_allow_html=True)
-            st.subheader("2. Selecionar Colunas para Exportar")
+            st.subheader("3. Selecionar Colunas para Exportar")
             st.session_state.selected_columns = st.multiselect(
                 "Escolha as colunas que deseja incluir no arquivo final:",
                 options=st.session_state.available_columns,
-                default=st.session_state.get("selected_columns", st.session_state.available_columns) # Mantém as seleções anteriores
+                default=st.session_state.get("selected_columns", st.session_state.available_columns)
             )
             st.markdown('</div>', unsafe_allow_html=True)
-
-    with st.container():
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("Exportação")
-        st.write("Os arquivos gravados ficam disponíveis para download abaixo após o processamento.")
-        st.markdown('</div>', unsafe_allow_html=True)
 
     if "last_df_processed" in st.session_state:
         with st.container():
             st.markdown('<div class="dark-card">', unsafe_allow_html=True)
-            st.subheader("Dados Processados")
+            st.subheader("Dados Processados e Exportação")
             
-            # <-- ALTERAÇÃO: Filtrar o DataFrame com base nas colunas selecionadas
             df_processed_full = pd.read_json(io.StringIO(st.session_state["last_df_processed"]), orient='split')
             
-            # Garante que selected_columns existe antes de usar
             selected_cols = st.session_state.get("selected_columns", df_processed_full.columns.tolist())
-            
-            # Filtra apenas as colunas que realmente existem no DataFrame para evitar erros
             valid_selected_cols = [col for col in selected_cols if col in df_processed_full.columns]
             
             df_final_display = df_processed_full[valid_selected_cols]
@@ -458,7 +446,6 @@ with col2:
             t = datetime.now().strftime("%Y%m%d_%H%M%S")
             dl_cols = st.columns(2)
             
-            # <-- ALTERAÇÃO: Gerar arquivos de download com as colunas filtradas
             excel_data = to_excel(df_final_display)
             csv_data = df_final_display.to_csv(index=False).encode("utf-8")
 
@@ -468,6 +455,9 @@ with col2:
 
 
 # --- LÓGICA DE PROCESSAMENTO (quando o botão é clicado) ---
+if 'process_clicked' not in locals():
+    process_clicked = False
+    
 if process_clicked:
     if uploaded_file is None:
         st.error("Por favor, carregue um arquivo antes de processar.")
@@ -482,12 +472,9 @@ if process_clicked:
                     df_proc, report = process_codes(df_raw.copy(), sequentials, json_state, column_report)
                     st.session_state["last_report"] = report
                     
-                    # <-- ALTERAÇÃO: Salvar o DataFrame completo e as colunas disponíveis
-                    # Usamos to_json para armazenar o DataFrame de forma eficiente no st.session_state
                     st.session_state["last_df_processed"] = df_proc.to_json(orient='split', date_format='iso')
                     st.session_state["available_columns"] = df_proc.columns.tolist()
                     
-                    # <-- ALTERAÇÃO: Limpar dados antigos de download para evitar confusão
                     if "last_df_csv" in st.session_state: del st.session_state["last_df_csv"]
                     if "last_df_excel" in st.session_state: del st.session_state["last_df_excel"]
 
