@@ -16,103 +16,107 @@ COLUNAS_OBRIGATORIAS = [
     'PROCESSO', 'GRUPO DE PRODUTO'
 ]
 
-# --- Estilo (Baseado nas novas imagens) ---
+# --- Estilo ---
 st.set_page_config(layout="wide", page_title="SolidWorks BOM Processor")
 
-# --- ATUALIZADO: CSS para corresponder ao novo design ---
+# Função para converter imagens para base64
+def get_image_as_base64(path):
+    try:
+        with open(path, "rb") as f:
+            data = f.read()
+        return base64.b64encode(data).decode()
+    except IOError:
+        return None
+
+# Carregando a imagem de fundo do novo cabeçalho
+header_bg_base64 = get_image_as_base64("header_bg.jpg")
+
+# --- NOVO: SVG do ícone do cabeçalho ---
+icon_svg = """
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" class="bi bi-file-earmark-spreadsheet-fill" viewBox="0 0 16 16">
+  <path d="M6 12v-2h3v2H6z"/>
+  <path d="M9.293 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4.707A1 1 0 0 0 13.707 4L10 .293A1 1 0 0 0 9.293 0zM9.5 3.5v-2l3 3h-2a1 1 0 0 1-1-1zM3 9h10v1h-3v2h3v1h-3v2H9v-2H6v2H5v-2H3v-1h2v-2H3V9z"/>
+</svg>
+"""
+
+header_style = ""
+if header_bg_base64:
+    header_style = f"""
+        background-image: linear-gradient(rgba(90, 102, 61, 0.9), rgba(90, 102, 61, 0.9)), url(data:image/jpeg;base64,{header_bg_base64});
+    """
+else:
+    # Estilo fallback caso a imagem não exista
+    header_style = "background: linear-gradient(45deg, #5a663d, #7E8C54);"
+
 st.markdown(f"""
 <style>
     /* --- GERAL --- */
     .stApp {{
-        background-color: #7E8C54; /* Verde Musgo */
+        background-color: #e5e9dc; /* Verde bem claro do fundo da imagem */
     }}
     h1, h2, h3 {{
         color: #1a202c !important;
     }}
-    
-    /* --- CARD STYLES --- */
-    .card {{
-        background-color: #FFFFFF;
-        border: 1px solid #e2e8f0;
+
+    /* --- ATUALIZADO: CABEÇALHO --- */
+    .banner-header {{
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        padding: 1.5rem;
         border-radius: 12px;
-        padding: 25px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
-        margin-bottom: 20px;
-    }}
-    .card-green {{
-        background-color: #f0f5e1; /* Verde claro do seletor de colunas */
-    }}
-    .card-dark {{
-        background-color: #256D7B; /* Verde Azulado */
-        color: #FFFFFF;
-    }}
-    .card-dark h1, .card-dark h2, .card-dark h3, .card-dark p, .card-dark small {{
-        color: #FFFFFF !important;
-    }}
-    
-    /* --- BOTÕES --- */
-    .stButton > button {{
-        border-radius: 8px;
-        padding: 8px 20px;
-        font-weight: 600;
-        transition: all 0.2s ease-in-out;
-    }}
-    .stButton > button:hover {{
-        filter: brightness(1.1);
-    }}
-    
-    /* --- ATUALIZADO: RELATÓRIO DE PROCESSAMENTO --- */
-    .report-container {{
-        max-height: 400px;
-        overflow-y: auto;
-        padding-right: 10px;
-    }}
-    .report-item {{
-        display: flex;
-        align-items: center;
-        padding: 12px;
-        margin-bottom: 8px;
-        border-radius: 8px;
-        border: 1px solid;
-    }}
-    .report-item-icon {{
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        min-width: 24px;
-        height: 24px;
-        border-radius: 50%;
-        margin-right: 12px;
-        font-weight: bold;
+        margin-bottom: 2rem;
         color: white;
+        {header_style}
+        background-size: cover;
+        background-position: center;
     }}
+    .banner-icon {{
+        background-color: #B3D10D; /* Amarelo-esverdeado */
+        border-radius: 50%;
+        width: 64px;
+        height: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }}
+    .banner-icon svg {{
+        color: #2D2D2D;
+    }}
+    .banner-text h1 {{
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: #FFFFFF !important;
+        margin: 0;
+        line-height: 1.2;
+    }}
+    .banner-text p {{
+        font-size: 1.1rem;
+        color: rgba(255, 255, 255, 0.9) !important;
+        margin: 0;
+    }}
+
+    /* Estilos dos cards e botões (sem alteração da versão anterior) */
+    .card-dark {{ background-color: #256D7B; color: #FFFFFF; }}
+    .card-dark h1, .card-dark h2, .card-dark h3, .card-dark p, .card-dark small {{ color: #FFFFFF !important; }}
+    .stButton > button {{ border-radius: 8px; padding: 8px 20px; font-weight: 600; transition: all 0.2s ease-in-out; }}
+    .stButton > button:hover {{ filter: brightness(1.1); }}
+    .report-container {{ max-height: 400px; overflow-y: auto; padding-right: 10px; }}
+    .report-item {{ display: flex; align-items: center; padding: 12px; margin-bottom: 8px; border-radius: 8px; border: 1px solid; }}
+    .report-item-icon {{ display: flex; justify-content: center; align-items: center; min-width: 24px; height: 24px; border-radius: 50%; margin-right: 12px; font-weight: bold; color: white; }}
     .report-item-success {{ background-color: #e6f3d8; border-color: #c3d9a5; }}
     .report-item-success .report-item-icon {{ background-color: #6E9B44; }}
     .report-item-info {{ background-color: #e0f2f7; border-color: #a0c4d1; }}
     .report-item-info .report-item-icon {{ background-color: #007B9E; }}
     .report-item-warning {{ background-color: #fff3cd; border-color: #ffda77; }}
     .report-item-warning .report-item-icon {{ background-color: #FFAA00; }}
-    .report-item-error {{ background-color: #f8d7da; border-color: #f0b6b9; }}
-    .report-item-error .report-item-icon {{ background-color: #D9534F; }}
-
-    /* --- NOVO: BOTÕES DE DOWNLOAD --- */
-    .stDownloadButton > button {{
-        background-color: #B3D10D !important; /* Amarelo-esverdeado */
-        color: #2D2D2D !important;
-        font-size: 1.1rem !important;
-        font-weight: 700 !important;
-        padding: 1rem !important;
-        border-radius: 12px !important;
-        border: none !important;
-        width: 100%;
-    }}
-    .stDownloadButton > button:hover {{
-        filter: brightness(1.05);
-        color: #000 !important;
-    }}
+    .stDownloadButton > button {{ background-color: #B3D10D !important; color: #2D2D2D !important; font-size: 1.1rem !important; font-weight: 700 !important; padding: 1rem !important; border-radius: 12px !important; border: none !important; width: 100%; }}
+    .stDownloadButton > button:hover {{ filter: brightness(1.05); color: #000 !important; }}
 </style>
 """, unsafe_allow_html=True)
 
+# (O restante do código Python, incluindo as funções de processamento, permanece o mesmo)
 # --- Funções auxiliares (sem alteração) ---
 def load_sequentials(file_path=STATE_FILE):
     if os.path.exists(file_path):
@@ -127,7 +131,6 @@ def save_sequentials(data, file_path=STATE_FILE):
 
 @st.cache_data
 def load_data(uploaded_file):
-    # (A lógica interna desta função permanece a mesma)
     if uploaded_file is None: return None, [], "Nenhum arquivo carregado."
     report_log, df = [], None
     try:
@@ -151,7 +154,6 @@ def load_data(uploaded_file):
     except Exception as e: return None, [], f"Erro ao ler o arquivo: {e}"
 
 def process_codes(df, sequentials, json_state, column_report):
-    # (A lógica interna desta função permanece a mesma)
     if df is None or df.empty: return pd.DataFrame(), [], "DataFrame vazio."
     report_log = list(column_report)
     for g in sequentials.keys(): sequentials[g] = max(int(sequentials[g]), int(json_state.get(g, 0)))
@@ -211,16 +213,27 @@ def to_excel(df):
     out = io.BytesIO()
     with pd.ExcelWriter(out, engine='xlsxwriter') as w: df.to_excel(w, index=False, sheet_name='Lista de Peças')
     return out.getvalue()
-
+    
 # --- Interface --- #
 
-# Cabeçalho e Controles
-st.subheader("Controles e Configurações")
+# --- NOVO: Cabeçalho ---
+st.markdown(f"""
+<div class="banner-header">
+    <div class="banner-icon">{icon_svg}</div>
+    <div class="banner-text">
+        <h1>SolidWorks BOM Processor</h1>
+        <p>Processamento automático de listas de materiais exportadas do SolidWorks</p>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+
+# Layout principal (sem alteração)
 col1, col2 = st.columns([5, 7])
 
 # --- Coluna da Esquerda (Configurações e Relatório) ---
 with col1:
-    with st.container(border=True): # Usando borda nativa do Streamlit
+    with st.container(border=True):
         st.subheader("⚙️ Tabela de Grupos")
         group_table = { "100":"Mecânico", "200":"Elétrico", "300":"Hidráulico Água", "400":"Hidráulico Óleo", "500":"Pneumático", "600":"Tecnologia", "700":"Infraestrutura", "800":"Insumos", "900":"Segurança", "950":"Serviço" }
         json_state = load_sequentials()
@@ -262,69 +275,48 @@ with col2:
             st.session_state["version"] += 1
             st.rerun()
 
-    # --- NOVO: Seletor de colunas com checkboxes ---
     if "available_columns" in st.session_state:
         with st.container(border=True):
-            st.markdown('<div class="card-green" style="padding: 20px; border-radius: 12px;">', unsafe_allow_html=True)
-            
-            # Cabeçalho do seletor
             head_cols = st.columns([1,1])
-            head_cols[0].subheader("⚙️ 2. Selecionar Colunas")
+            head_cols[0].subheader("📋 3. Selecionar Colunas")
             if head_cols[1].button("Resetar Seleção", key="reset_cols", use_container_width=True):
                 for col in st.session_state.available_columns:
                     st.session_state[f"col_select_{col}"] = True
                 st.session_state.select_all_cols = True
                 st.rerun()
-
-            select_all = st.checkbox("Selecionar todas (13 colunas)", key="select_all_cols", value=st.session_state.get("select_all_cols", True))
-
+            select_all = st.checkbox("Selecionar todas", key="select_all_cols", value=st.session_state.get("select_all_cols", True))
             st.markdown("---")
-
-            # Checkboxes em duas colunas
             all_cols = st.session_state.available_columns
             mid_point = math.ceil(len(all_cols) / 2)
             c1, c2 = st.columns(2)
-            
             selected_cols_list = []
-
             def update_select_all():
-                # Verifica se todas as checkboxes individuais estão marcadas
                 st.session_state.select_all_cols = all(st.session_state.get(f"col_select_{c}", True) for c in all_cols)
-
             for i, col_name in enumerate(all_cols):
                 container = c1 if i < mid_point else c2
-                # Se 'select_all' foi clicado, seu valor atualiza as checkboxes filhas
                 default_val = select_all if f"col_select_{col_name}" not in st.session_state else st.session_state.get(f"col_select_{col_name}", True)
-                
                 if container.checkbox(col_name, value=default_val, key=f"col_select_{col_name}", on_change=update_select_all):
                     selected_cols_list.append(col_name)
-
             st.session_state.selected_columns = [c for c in all_cols if st.session_state.get(f"col_select_{c}", True)]
-            
             st.markdown("---")
             st.caption(f"**{len(st.session_state.selected_columns)} de {len(all_cols)} colunas selecionadas**")
-            
-            st.markdown('</div>', unsafe_allow_html=True)
-
 
 # --- Seção de Dados e Download ---
 if "last_df_processed" in st.session_state:
     st.markdown("---")
     st.subheader("Resultados")
-    st.markdown('<div class="card card-dark">', unsafe_allow_html=True)
-    
-    # --- ATUALIZADO: Botões de Download dentro do card de dados ---
-    st.write("### Dados Processados")
-    dl_cols = st.columns(2)
-    df_to_export = pd.read_json(io.StringIO(st.session_state["last_df_processed"]), orient='split')[st.session_state.selected_columns]
-    t = datetime.now().strftime("%Y%m%d_%H%M%S")
-    excel_data = to_excel(df_to_export)
-    csv_data = df_to_export.to_csv(index=False).encode("utf-8")
-    dl_cols[0].download_button("📥 Baixar Excel (.xlsx)", excel_data, f"lista_codificada_{t}.xlsx")
-    dl_cols[1].download_button("📥 Baixar CSV (.csv)", csv_data, f"lista_codificada_{t}.csv")
-
-    st.dataframe(df_to_export, use_container_width=True, height=500)
-    st.markdown('</div>', unsafe_allow_html=True)
+    with st.container(border=True):
+        st.markdown('<div class="card-dark" style="padding: 20px; border-radius: 12px;">', unsafe_allow_html=True)
+        st.write("### 📄 Dados Processados")
+        dl_cols = st.columns(2)
+        df_to_export = pd.read_json(io.StringIO(st.session_state["last_df_processed"]), orient='split')[st.session_state.selected_columns]
+        t = datetime.now().strftime("%Y%m%d_%H%M%S")
+        excel_data = to_excel(df_to_export)
+        csv_data = df_to_export.to_csv(index=False).encode("utf-8")
+        dl_cols[0].download_button("📥 Baixar Excel (.xlsx)", excel_data, f"lista_codificada_{t}.xlsx")
+        dl_cols[1].download_button("📥 Baixar CSV (.csv)", csv_data, f"lista_codificada_{t}.csv")
+        st.dataframe(df_to_export, use_container_width=True, height=500)
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # --- Lógica de Processamento ---
 if process_clicked:
@@ -340,11 +332,9 @@ if process_clicked:
                     st.session_state["last_report"] = report
                     st.session_state["last_df_processed"] = df_proc.to_json(orient='split', date_format='iso')
                     st.session_state["available_columns"] = df_proc.columns.tolist()
-                    # Inicializa o estado das checkboxes de coluna
                     for col in df_proc.columns.tolist():
                         st.session_state[f"col_select_{col}"] = True
                     st.session_state.select_all_cols = True
-
             st.toast("✅ Processamento concluído!", icon="🎉")
             st.rerun()
         except Exception as e:
