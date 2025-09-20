@@ -21,8 +21,6 @@ COLUNAS_OBRIGATORIAS = [
 st.set_page_config(layout="wide", page_title="SolidWorks BOM Processor")
 
 # Carregando a imagem do logo e convertendo para base64 para embutir no HTML
-# Substitua 'logo.png' pelo caminho real da sua imagem de logo se tiver o arquivo.
-# Caso não tenha, uma imagem placeholder será usada.
 def get_image_as_base64(path):
     try:
         with open(path, "rb") as f:
@@ -30,155 +28,152 @@ def get_image_as_base64(path):
         return base64.b64encode(data).decode()
     except IOError:
         # Retorna um SVG placeholder se a imagem não for encontrada
-        return "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCAyMDAgNTAiPgo8cGF0aCBmaWxsPSIjMDBBRUVGIiBkPSJNMjUsMEMxMS4xOSwwLDAsMTEuMTksMCwyNVMxMS4xOSw1MCwyNSw1MFM1MCwzOC44MSw1MCwyNVMyNSwwLDAsMjVaIE0yNSw0M0ExOCwxOCwwLDEsMSw0MywyNSwxOCwxOCwwLDAsMSwyNSw0M1oiLz4KPHRleHQgeD0iNjAiIHk9IjMzIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiMzMzMiPjxwcmVjaXNvPC90ZXh0Pgo8L3N2Zz4="
+        return "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCAyMDAgNTAiPgo8cGF0aCBmaWxsPSIjMDBBRUVGIiBkPSJNMjUsMEMxMS4xOSwwLDAsMTEuMTksMCwyNVMxMS4xOSw1MCwyNSw1MFM1MCwzOC44MSw1MCwyNVMyNSwwLDAsMjVaIE0yNSw0M0ExOCwxOCwwLDEsMSw0MywyNSwxOCwxOCwwLDAsMSwyNSw0M1oiLz4KPHRleHQgeD0iNjAiIHk9IjMzIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiMzMzMiPlByZWNpc288L3RleHQ+Cjwvc3ZnPg=="
 
 logo_base64 = get_image_as_base64("logo.png")
 
-
-st.markdown(f"""
+st.markdown("""
 <style>
     /* --- GERAL --- */
-    .stApp {{
+    .stApp {
         background-color: #7E8C54; /* Verde Musgo */
         color: #333;
-    }}
-    h1, h2, h3 {{
+    }
+    h1, h2, h3 {
         color: #FFFFFF !important;
-    }}
-    .card h1, .card h2, .card h3 {{
+    }
+    .card h1, .card h2, .card h3 {
         color: #2D2D2D !important; /* Mantém a cor escura dentro dos cards brancos */
-    }}
-
+    }
 
     /* --- BOTÕES --- */
-    .stButton > button {{
+    .stButton > button {
         border-radius: 5px;
         padding: 10px 24px;
         font-weight: 600;
         width: 100%;
         transition: all 0.2s ease-in-out;
-    }}
+    }
 
     /* --- CONTAINERS E CARDS --- */
-    .main-container {{
+    .main-container {
         display: flex;
         flex-direction: row;
         gap: 20px;
-    }}
-    .column {{
+    }
+    .column {
         display: flex;
         flex-direction: column;
         gap: 20px;
-    }}
-    .card {{
+    }
+    .card {
         background-color: #FFFFFF;
         border-radius: 8px;
         padding: 25px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    }}
-    .dark-card {{
+    }
+    .dark-card {
         background-color: #256D7B; /* Verde Azulado */
         border-radius: 8px;
         padding: 25px;
         color: #FFFFFF;
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    }}
-    .dark-card h3 {{
+    }
+    .dark-card h3 {
         color: #FFFFFF !important;
-    }}
+    }
 
     /* --- HEADER --- */
-    .header-container img {{
+    .header-container img {
         max-height: 50px;
-    }}
-    .header-container h1 {{
+    }
+    .header-container h1 {
         font-size: 2.5rem;
         font-weight: 700;
         margin: 0;
         line-height: 1.1;
         color: #FFFFFF !important;
-    }}
-    .header-container p {{
+    }
+    .header-container p {
         font-size: 1rem;
         color: #E0E0E0;
         margin: 0;
-    }}
+    }
 
     /* --- UPLOADER DE ARQUIVO --- */
-    [data-testid="stFileUploader"] {{
+    [data-testid="stFileUploader"] {
         background-color: #256D7B; /* Verde Azulado */
         border: 2px dashed #4E8A96;
         border-radius: 8px;
         padding: 20px;
-    }}
-    [data-testid="stFileUploader"] section {{
+    }
+    [data-testid="stFileUploader"] section {
         background-color: #256D7B; /* Verde Azulado */
         color: #fff;
-    }}
-    [data-testid="stFileUploader"] label {{
+    }
+    [data-testid="stFileUploader"] label {
         font-weight: bold;
-        color: #B3D10D !important;
+        color: #D4E157 !important; /* Cor com maior contraste */
         margin-bottom: 10px;
         display: block;
-    }}
-    [data-testid="stFileUploader"] button {{
+    }
+    [data-testid="stFileUploader"] button {
         background-color: #333;
         color: #fff;
         border: 1px solid #555;
-    }}
+    }
 
     /* --- TABELA DE GRUPOS --- */
-    [data-testid="stNumberInput"] input {{
+    [data-testid="stNumberInput"] input {
         background-color: #2D2D2D !important;
         color: #FFFFFF !important;
         border: 1px solid #555 !important;
         border-radius: 4px;
-    }}
-    [data-testid="stNumberInput"] button {{
+    }
+    [data-testid="stNumberInput"] button {
         background-color: #444 !important;
         color: #fff !important;
         border: 1px solid #555 !important;
-    }}
+    }
     
     /* --- DATAFRAME --- */
-    [data-testid="stDataFrame"] {{
+    [data-testid="stDataFrame"] {
         background-color: #256D7B; /* Verde Azulado */
         border-radius: 8px;
-    }}
-    [data-testid="stDataFrame"] table {{
+    }
+    [data-testid="stDataFrame"] table {
         color: #E0E0E0;
-    }}
-    [data-testid="stDataFrame"] thead th {{
+    }
+    [data-testid="stDataFrame"] thead th {
         background-color: #1A4A53; /* Tom mais escuro de Verde Azulado */
-        color: #B3D10D;
+        color: #D4E157;
         font-weight: bold;
-        border-bottom: 2px solid #B3D10D;
-    }}
-    [data-testid="stDataFrame"] tbody tr:nth-of-type(even) {{
+        border-bottom: 2px solid #D4E157;
+    }
+    [data-testid="stDataFrame"] tbody tr:nth-of-type(even) {
         background-color: #2F7C8A; /* Tom mais claro de Verde Azulado */
-    }}
-     [data-testid="stDataFrame"] tbody tr:nth-of-type(odd) {{
+    }
+    [data-testid="stDataFrame"] tbody tr:nth-of-type(odd) {
         background-color: #256D7B; /* Verde Azulado */
-    }}
-    [data-testid="stDataFrame"] tbody tr:hover td {{
+    }
+    [data-testid="stDataFrame"] tbody tr:hover td {
         background-color: #404040;
-    }}
-    [data-testid="stDataFrame"] tbody td {{
+    }
+    [data-testid="stDataFrame"] tbody td {
         border-color: #333;
-    }}
+    }
 
     /* --- RELATÓRIO --- */
-    .report-item-success, .report-item-info, .report-item-warning, .report-item-error {{
+    .report-item-success, .report-item-info, .report-item-warning, .report-item-error {
         padding: 15px;
         margin-bottom: 10px;
         border-radius: 5px;
         border-left: 5px solid;
-    }}
-    .report-item-success {{ background-color: #E6F3D8; border-color: #6E9B44; }}
-    .report-item-info {{ background-color: #E0F2F7; border-color: #007B9E; }}
-    .report-item-warning {{ background-color: #FFF3CD; border-color: #FFAA00; }}
-    .report-item-error {{ background-color: #F8D7DA; border-color: #D9534F; }}
-
+    }
+    .report-item-success { background-color: #E6F3D8; border-color: #6E9B44; }
+    .report-item-info { background-color: #E0F2F7; border-color: #007B9E; }
+    .report-item-warning { background-color: #FFF3CD; border-color: #FFAA00; }
+    .report-item-error { background-color: #F8D7DA; border-color: #D9534F; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -210,14 +205,25 @@ def load_data(uploaded_file):
             df = pd.read_excel(uploaded_file)
         elif name.endswith(".txt"):
             content = uploaded_file.getvalue().decode('utf-8').splitlines()
-            header = [h.strip() for h in content[-1].split('\t')]
-            data_lines = content[:-1]
+            content = [line for line in content if line.strip()]  # Remove linhas vazias
+            if not content:
+                return None, [], "Arquivo TXT vazio."
+            
+            # Tenta detectar o cabeçalho (assume que é a linha com mais colunas)
+            header_candidates = [line.split('\t') for line in content]
+            header_index = max(range(len(header_candidates)), key=lambda i: len(header_candidates[i]))
+            header = [h.strip() for h in header_candidates[header_index]]
+            
+            if not header:
+                return None, [], "Nenhum cabeçalho válido encontrado no arquivo TXT."
+            
+            data_lines = [line.split('\t') for line in content[:header_index] + content[header_index+1:]]
             parsed_data = [
-                (line.split('\t') + [''] * len(header))[:len(header)]
-                for line in data_lines if line.strip()
+                (line + [''] * len(header))[:len(header)]
+                for line in data_lines if line
             ]
             df = pd.DataFrame(parsed_data, columns=header)
-            df = df.iloc[::-1].reset_index(drop=True)
+            df = df.iloc[::-1].reset_index(drop=True)  # Mantém a inversão, se necessário
         else:
             return None, [], "Formato de arquivo não suportado."
 
@@ -234,10 +240,12 @@ def load_data(uploaded_file):
         df['QTD.'] = pd.to_numeric(df['QTD.'], errors='coerce').fillna(0)
         
         return df, report_log, "Arquivo lido com sucesso."
+    except UnicodeDecodeError:
+        return None, [], "Erro de codificação: o arquivo TXT deve estar em UTF-8."
     except Exception as e:
-        return None, [], f"Erro ao ler o arquivo: {e}"
+        return None, [], f"Erro ao ler o arquivo: {str(e)}"
 
-# --- process logic (Funcionalidade Original Mantida) ---
+# --- process logic ---
 def process_codes(df, sequentials, json_state, column_report):
     if df is None or df.empty:
         return pd.DataFrame(), [], "DataFrame vazio."
@@ -293,7 +301,9 @@ def process_codes(df, sequentials, json_state, column_report):
             while f"{g}-{next_code:06d}" in df['CÓDIGO FINAL'].values:
                 next_code += 1
             if next_code > MAX_SEQ:
-                raise Exception(f"Limite de 6 dígitos atingido para o grupo {g}.")
+                report_log.append(f"❌ Limite de 6 dígitos atingido para o grupo {g}. Código mantido como NULO.")
+                df.loc[i, 'CÓDIGO FINAL'] = 'NULO'
+                continue
             
             sequentials[g] = next_code
             new_code = f"{g}-{sequentials[g]:06d}"
@@ -336,8 +346,7 @@ def to_excel(df):
         df.to_excel(w, index=False, sheet_name='Lista de Peças')
     return out.getvalue()
 
-
-# --- Interface --- #
+# --- Interface ---
 
 # --- HEADER ---
 header_cols = st.columns([1, 4])
@@ -376,7 +385,16 @@ with col1:
             g_cols[1].write(desc)
             key = f"seq_{g}_v{version}"
             init_val = int(st.session_state.get(key, json_state.get(g, 0)))
-            g_cols[2].number_input(f"Próximo código {g}", min_value=0, max_value=MAX_SEQ, value=init_val, step=1, key=key, label_visibility="collapsed")
+            g_cols[2].number_input(
+                f"Próximo código {g}", 
+                min_value=0, 
+                max_value=MAX_SEQ, 
+                value=init_val, 
+                step=1, 
+                key=key, 
+                label_visibility="collapsed",
+                help=f"Digite o próximo código para o grupo {g}. Deve ser um número entre 0 e {MAX_SEQ}."
+            )
         
         st.markdown('</div>', unsafe_allow_html=True)
         
@@ -403,14 +421,18 @@ with col1:
         
     if "last_report" in st.session_state:
         with st.container():
-             st.markdown('<div class="card">', unsafe_allow_html=True)
-             st.subheader("Relatório de Processamento")
-             for log in st.session_state["last_report"]:
-                 if log.startswith("✔️") or log.startswith("✅"): st.markdown(f'<div class="report-item-success">{log}</div>', unsafe_allow_html=True)
-                 elif log.startswith("⚠️"): st.markdown(f'<div class="report-item-warning">{log}</div>', unsafe_allow_html=True)
-                 elif log.startswith("❌"): st.markdown(f'<div class="report-item-error">{log}</div>', unsafe_allow_html=True)
-                 else: st.markdown(f'<div class="report-item-info">{log}</div>', unsafe_allow_html=True)
-             st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            st.subheader("Relatório de Processamento")
+            for log in st.session_state["last_report"]:
+                if log.startswith("✔️") or log.startswith("✅"): 
+                    st.markdown(f'<div class="report-item-success">{log}</div>', unsafe_allow_html=True)
+                elif log.startswith("⚠️"): 
+                    st.markdown(f'<div class="report-item-warning">{log}</div>', unsafe_allow_html=True)
+                elif log.startswith("❌"): 
+                    st.markdown(f'<div class="report-item-error">{log}</div>', unsafe_allow_html=True)
+                else: 
+                    st.markdown(f'<div class="report-item-info">{log}</div>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
 
 with col2:
     with st.container():
@@ -418,8 +440,6 @@ with col2:
         uploaded_file = st.file_uploader("1. Carregar Arquivo", type=['txt', 'xlsx'], help="Arraste e solte ou clique para selecionar o arquivo TXT ou XLSX exportado do SolidWorks")
         st.markdown('</div>', unsafe_allow_html=True)
     
-    # <-- ALTERAÇÃO: Adicionar o seletor de colunas
-    # Ele só aparece se um arquivo for carregado e processado
     if "available_columns" in st.session_state:
         with st.container():
             st.markdown('<div class="card">', unsafe_allow_html=True)
@@ -427,7 +447,7 @@ with col2:
             st.session_state.selected_columns = st.multiselect(
                 "Escolha as colunas que deseja incluir no arquivo final:",
                 options=st.session_state.available_columns,
-                default=st.session_state.get("selected_columns", st.session_state.available_columns) # Mantém as seleções anteriores
+                default=st.session_state.get("selected_columns", st.session_state.available_columns)
             )
             st.markdown('</div>', unsafe_allow_html=True)
 
@@ -442,23 +462,15 @@ with col2:
             st.markdown('<div class="dark-card">', unsafe_allow_html=True)
             st.subheader("Dados Processados")
             
-            # <-- ALTERAÇÃO: Filtrar o DataFrame com base nas colunas selecionadas
             df_processed_full = pd.read_json(io.StringIO(st.session_state["last_df_processed"]), orient='split')
-            
-            # Garante que selected_columns existe antes de usar
             selected_cols = st.session_state.get("selected_columns", df_processed_full.columns.tolist())
-            
-            # Filtra apenas as colunas que realmente existem no DataFrame para evitar erros
             valid_selected_cols = [col for col in selected_cols if col in df_processed_full.columns]
-            
             df_final_display = df_processed_full[valid_selected_cols]
 
             st.dataframe(df_final_display, use_container_width=True)
 
             t = datetime.now().strftime("%Y%m%d_%H%M%S")
             dl_cols = st.columns(2)
-            
-            # <-- ALTERAÇÃO: Gerar arquivos de download com as colunas filtradas
             excel_data = to_excel(df_final_display)
             csv_data = df_final_display.to_csv(index=False).encode("utf-8")
 
@@ -466,8 +478,7 @@ with col2:
             dl_cols[1].download_button("Baixar CSV (.csv)", csv_data, f"lista_codificada_{t}.csv")
             st.markdown('</div>', unsafe_allow_html=True)
 
-
-# --- LÓGICA DE PROCESSAMENTO (quando o botão é clicado) ---
+# --- LÓGICA DE PROCESSAMENTO ---
 if process_clicked:
     if uploaded_file is None:
         st.error("Por favor, carregue um arquivo antes de processar.")
@@ -481,17 +492,13 @@ if process_clicked:
                 else:
                     df_proc, report = process_codes(df_raw.copy(), sequentials, json_state, column_report)
                     st.session_state["last_report"] = report
-                    
-                    # <-- ALTERAÇÃO: Salvar o DataFrame completo e as colunas disponíveis
-                    # Usamos to_json para armazenar o DataFrame de forma eficiente no st.session_state
                     st.session_state["last_df_processed"] = df_proc.to_json(orient='split', date_format='iso')
                     st.session_state["available_columns"] = df_proc.columns.tolist()
                     
-                    # <-- ALTERAÇÃO: Limpar dados antigos de download para evitar confusão
                     if "last_df_csv" in st.session_state: del st.session_state["last_df_csv"]
                     if "last_df_excel" in st.session_state: del st.session_state["last_df_excel"]
 
             st.success("Processamento concluído com sucesso!")
             st.rerun()
         except Exception as e:
-            st.error(f"Ocorreu um erro durante o processamento: {e}")
+            st.error(f"Ocorreu um erro durante o processamento: {str(e)}")
