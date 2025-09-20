@@ -31,7 +31,7 @@ def get_image_as_base64(path):
 # Carregando a imagem de fundo do novo cabeçalho
 header_bg_base64 = get_image_as_base64("header_bg.jpg")
 
-# --- NOVO: SVG do ícone do cabeçalho ---
+# SVG do ícone do cabeçalho
 icon_svg = """
 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" class="bi bi-file-earmark-spreadsheet-fill" viewBox="0 0 16 16">
   <path d="M6 12v-2h3v2H6z"/>
@@ -45,61 +45,57 @@ if header_bg_base64:
         background-image: linear-gradient(rgba(90, 102, 61, 0.9), rgba(90, 102, 61, 0.9)), url(data:image/jpeg;base64,{header_bg_base64});
     """
 else:
-    # Estilo fallback caso a imagem não exista
     header_style = "background: linear-gradient(45deg, #5a663d, #7E8C54);"
 
 st.markdown(f"""
 <style>
-    /* --- GERAL --- */
-    .stApp {{
-        background-color: #e5e9dc; /* Verde bem claro do fundo da imagem */
-    }}
-    h1, h2, h3 {{
-        color: #1a202c !important;
-    }}
+    /* GERAL */
+    .stApp {{ background-color: #e5e9dc; }}
+    h1, h2, h3 {{ color: #1a202c !important; }}
 
-    /* --- ATUALIZADO: CABEÇALHO --- */
-    .banner-header {{
-        display: flex;
-        align-items: center;
-        gap: 20px;
-        padding: 1.5rem;
+    /* CABEÇALHO */
+    .banner-header {{ display: flex; align-items: center; gap: 20px; padding: 1.5rem; border-radius: 12px; margin-bottom: 2rem; color: white; {header_style} background-size: cover; background-position: center; }}
+    .banner-icon {{ background-color: #B3D10D; border-radius: 50%; width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }}
+    .banner-icon svg {{ color: #2D2D2D; }}
+    .banner-text h1 {{ font-size: 2.2rem; font-weight: 700; color: #FFFFFF !important; margin: 0; line-height: 1.2; }}
+    .banner-text p {{ font-size: 1.1rem; color: rgba(255, 255, 255, 0.9) !important; margin: 0; }}
+
+    /* --- NOVO: ESTILO DO FILE UPLOADER --- */
+    .upload-box {{
+        background-color: #256D7B;
         border-radius: 12px;
-        margin-bottom: 2rem;
-        color: white;
-        {header_style}
-        background-size: cover;
-        background-position: center;
+        padding: 1.5rem;
     }}
-    .banner-icon {{
-        background-color: #B3D10D; /* Amarelo-esverdeado */
-        border-radius: 50%;
-        width: 64px;
-        height: 64px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
+    .upload-box [data-testid="stFileUploader"] {{
+        border: 2px dashed #4E8A96;
+        border-radius: 8px;
     }}
-    .banner-icon svg {{
-        color: #2D2D2D;
+    .upload-box [data-testid="stFileUploader"] section {{
+        padding: 2rem 1rem;
+        background-color: transparent;
+        border: none;
     }}
-    .banner-text h1 {{
-        font-size: 2.2rem;
-        font-weight: 700;
-        color: #FFFFFF !important;
-        margin: 0;
-        line-height: 1.2;
+    .upload-box [data-testid="stFileUploader"] button {{
+        background-color: #B3D10D !important;
+        color: #2D2D2D !important;
+        border: none !important;
+        border-radius: 8px !important;
+        font-weight: 600 !important;
+        padding: 10px 24px !important;
     }}
-    .banner-text p {{
-        font-size: 1.1rem;
-        color: rgba(255, 255, 255, 0.9) !important;
-        margin: 0;
+    .upload-box [data-testid="stFileUploader"] small {{
+        color: rgba(255, 255, 255, 0.8);
     }}
+    .formatos-suportados {{
+        text-align: left;
+        margin-top: 1.5rem;
+        font-size: 0.9rem;
+        color: rgba(255, 255, 255, 0.9);
+    }}
+    .formatos-suportados strong {{ color: white; }}
+    .formatos-suportados li {{ margin-left: 20px; }}
 
-    /* Estilos dos cards e botões (sem alteração da versão anterior) */
-    .card-dark {{ background-color: #256D7B; color: #FFFFFF; }}
-    .card-dark h1, .card-dark h2, .card-dark h3, .card-dark p, .card-dark small {{ color: #FFFFFF !important; }}
+    /* Estilos dos outros componentes (sem alteração) */
     .stButton > button {{ border-radius: 8px; padding: 8px 20px; font-weight: 600; transition: all 0.2s ease-in-out; }}
     .stButton > button:hover {{ filter: brightness(1.1); }}
     .report-container {{ max-height: 400px; overflow-y: auto; padding-right: 10px; }}
@@ -216,7 +212,7 @@ def to_excel(df):
     
 # --- Interface --- #
 
-# --- NOVO: Cabeçalho ---
+# Cabeçalho
 st.markdown(f"""
 <div class="banner-header">
     <div class="banner-icon">{icon_svg}</div>
@@ -228,10 +224,10 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 
-# Layout principal (sem alteração)
+# Layout principal
 col1, col2 = st.columns([5, 7])
 
-# --- Coluna da Esquerda (Configurações e Relatório) ---
+# --- Coluna da Esquerda ---
 with col1:
     with st.container(border=True):
         st.subheader("⚙️ Tabela de Grupos")
@@ -262,13 +258,30 @@ with col1:
                 else: st.markdown(f'<div class="report-item report-item-info"><div class="report-item-icon">i</div><div>{log}</div></div>', unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
-# --- Coluna da Direita (Ações) ---
+# --- Coluna da Direita ---
 with col2:
+    # --- ATUALIZADO: Bloco de Upload com novo estilo ---
     with st.container(border=True):
-        st.subheader("📤 1. Carregar Arquivo")
-        uploaded_file = st.file_uploader("Arraste ou selecione o arquivo", type=['txt', 'xlsx'], label_visibility="collapsed")
-        
-        st.subheader("⚡ 2. Controle de Processamento")
+        st.markdown('<div class="upload-box">', unsafe_allow_html=True)
+        st.subheader("1. Carregar Arquivo")
+        uploaded_file = st.file_uploader(
+            "Arraste e solte seu arquivo aqui ou clique para selecionar",
+            type=['txt', 'xlsx'],
+            label_visibility="visible" # Label é o texto principal
+        )
+        st.markdown("""
+        <div class="formatos-suportados">
+            <strong>Formatos suportados:</strong>
+            <ul>
+                <li>TXT: Arquivos de texto exportados do SolidWorks</li>
+                <li>XLSX: Planilhas Excel</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    with st.container(border=True):
+        st.subheader("2. Controle de Processamento")
         b_cols = st.columns(2)
         process_clicked = b_cols[0].button("Processar Arquivo", type="primary", use_container_width=True)
         if b_cols[1].button("Resetar Campos", use_container_width=True):
@@ -278,7 +291,7 @@ with col2:
     if "available_columns" in st.session_state:
         with st.container(border=True):
             head_cols = st.columns([1,1])
-            head_cols[0].subheader("📋 3. Selecionar Colunas")
+            head_cols[0].subheader("3. Selecionar Colunas")
             if head_cols[1].button("Resetar Seleção", key="reset_cols", use_container_width=True):
                 for col in st.session_state.available_columns:
                     st.session_state[f"col_select_{col}"] = True
@@ -306,8 +319,8 @@ if "last_df_processed" in st.session_state:
     st.markdown("---")
     st.subheader("Resultados")
     with st.container(border=True):
-        st.markdown('<div class="card-dark" style="padding: 20px; border-radius: 12px;">', unsafe_allow_html=True)
-        st.write("### 📄 Dados Processados")
+        st.markdown('<div style="background-color: #256D7B; padding: 20px; border-radius: 12px; color:white;">', unsafe_allow_html=True)
+        st.write("<h3 style='color:white;'>📄 Dados Processados</h3>", unsafe_allow_html=True)
         dl_cols = st.columns(2)
         df_to_export = pd.read_json(io.StringIO(st.session_state["last_df_processed"]), orient='split')[st.session_state.selected_columns]
         t = datetime.now().strftime("%Y%m%d_%H%M%S")
