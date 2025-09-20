@@ -6,6 +6,7 @@ import json
 import os
 from datetime import datetime
 import math
+import base64 # Importa base64
 
 # --- CONFIGS ---
 STATE_FILE = "estado_sequenciais.json"
@@ -29,7 +30,7 @@ def get_image_as_base64(path):
         return None
 
 # Carregando a imagem de fundo do novo cabeçalho
-header_bg_base64 = get_image_as_base64("header_bg.jpg")
+header_bg_base64 = get_image_as_base64("header_bg.jpg") # Certifique-se de ter esta imagem na pasta
 
 # SVG do ícone do cabeçalho
 icon_svg = """
@@ -39,6 +40,7 @@ icon_svg = """
 </svg>
 """
 
+# Estilo para o cabeçalho
 header_style = ""
 if header_bg_base64:
     header_style = f"""
@@ -49,55 +51,130 @@ else:
 
 st.markdown(f"""
 <style>
-    /* GERAL */
-    .stApp {{ background-color: #e5e9dc; }}
-    h1, h2, h3 {{ color: #1a202c !important; }}
+    /* --- CORES PERSONALIZADAS --- */
+    :root {{
+        --main-bg-color: #A3CB38; /* Verde da primeira imagem */
+        --accent-teal: #008080;   /* Verde azulado da segunda imagem */
+        --light-green-card: #e6f3d8; /* Verde claro dos cards */
+        --button-primary-color: #008080; /* Verde azulado para botões */
+        --button-primary-text-color: #FFFFFF;
+        --button-secondary-color: #8D99AE; /* Cinza para botões de reset */
+        --button-secondary-text-color: #FFFFFF;
+        --upload-button-color: #B3D10D; /* Amarelo-esverdeado para upload/download */
+        --upload-button-text-color: #2D2D2D;
+    }}
 
-    /* CABEÇALHO */
-    .banner-header {{ display: flex; align-items: center; gap: 20px; padding: 1.5rem; border-radius: 12px; margin-bottom: 2rem; color: white; {header_style} background-size: cover; background-position: center; }}
-    .banner-icon {{ background-color: #B3D10D; border-radius: 50%; width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }}
-    .banner-icon svg {{ color: #2D2D2D; }}
-    .banner-text h1 {{ font-size: 2.2rem; font-weight: 700; color: #FFFFFF !important; margin: 0; line-height: 1.2; }}
-    .banner-text p {{ font-size: 1.1rem; color: rgba(255, 255, 255, 0.9) !important; margin: 0; }}
+    /* --- GERAL --- */
+    .stApp {{
+        background-color: var(--main-bg-color); /* Fundo da primeira imagem */
+    }}
+    h1, h2, h3 {{
+        color: #1a202c !important;
+    }}
 
-    /* --- NOVO: ESTILO DO FILE UPLOADER --- */
-    .upload-box {{
-        background-color: #256D7B;
+    /* --- CABEÇALHO --- */
+    .banner-header {{
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        padding: 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        color: white;
+        {header_style}
+        background-size: cover;
+        background-position: center;
+    }}
+    .banner-icon {{
+        background-color: var(--upload-button-color);
+        border-radius: 50%;
+        width: 64px;
+        height: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }}
+    .banner-icon svg {{
+        color: var(--upload-button-text-color);
+    }}
+    .banner-text h1 {{
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: #FFFFFF !important;
+        margin: 0;
+        line-height: 1.2;
+    }}
+    .banner-text p {{
+        font-size: 1.1rem;
+        color: rgba(255, 255, 255, 0.9) !important;
+        margin: 0;
+    }}
+
+    /* --- CARD STYLES --- */
+    .st-emotion-cache-eah9w0 {{ /* Container para os cards na coluna */
+        background-color: var(--light-green-card); /* Cor clara para os cards */
+        border: 1px solid #c3d9a5;
+        border-radius: 12px;
+        padding: 25px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+        margin-bottom: 20px;
+    }}
+    .upload-box, .card-dark-results {{ /* ATUALIZADO: Cor de fundo da tabela de resultados e upload */
+        background-color: var(--accent-teal); /* Verde azulado */
+        color: #FFFFFF;
         border-radius: 12px;
         padding: 1.5rem;
     }}
-    .upload-box [data-testid="stFileUploader"] {{
-        border: 2px dashed #4E8A96;
+    .upload-box h1, .upload-box h2, .upload-box h3, .upload-box p, .upload-box small {{
+        color: #FFFFFF !important;
+    }}
+    .card-dark-results h1, .card-dark-results h2, .card-dark-results h3, .card-dark-results p, .card-dark-results small {{
+        color: #FFFFFF !important;
+    }}
+
+    /* --- BOTÕES GERAIS --- */
+    .stButton > button {{
         border-radius: 8px;
+        padding: 8px 20px;
+        font-weight: 600;
+        transition: all 0.2s ease-in-out;
+        width: 100%;
     }}
-    .upload-box [data-testid="stFileUploader"] section {{
-        padding: 2rem 1rem;
-        background-color: transparent;
-        border: none;
+    .stButton > button:hover {{ filter: brightness(1.1); }}
+
+    /* ATUALIZADO: Botões 'Processar Arquivo', 'Resetar Campos', 'Resetar Seleção' */
+    .stButton[data-testid="stFormSubmitButton"] > button, /* Botão de processar */
+    .stButton:has( > [data-testid="stMarkdownContainer"] :contains("Resetar Campos")) > button,
+    .stButton:has( > [data-testid="stMarkdownContainer"] :contains("Resetar Seleção")) > button {{
+        background-color: var(--accent-teal) !important;
+        color: var(--button-primary-text-color) !important;
+        border: 1px solid var(--accent-teal) !important;
     }}
+    .stButton[data-testid="stFormSubmitButton"] > button:hover,
+    .stButton:has( > [data-testid="stMarkdownContainer"] :contains("Resetar Campos")) > button:hover,
+    .stButton:has( > [data-testid="stMarkdownContainer"] :contains("Resetar Seleção")) > button:hover {{
+        background-color: var(--accent-teal) !important; /* Mantém a cor no hover */
+        filter: brightness(1.1);
+    }}
+
+    /* --- FILE UPLOADER --- */
+    .upload-box [data-testid="stFileUploader"] {{ border: 2px dashed #4E8A96; border-radius: 8px; }}
+    .upload-box [data-testid="stFileUploader"] section {{ padding: 2rem 1rem; background-color: transparent; border: none; }}
     .upload-box [data-testid="stFileUploader"] button {{
-        background-color: #B3D10D !important;
-        color: #2D2D2D !important;
+        background-color: var(--upload-button-color) !important;
+        color: var(--upload-button-text-color) !important;
         border: none !important;
         border-radius: 8px !important;
         font-weight: 600 !important;
         padding: 10px 24px !important;
     }}
-    .upload-box [data-testid="stFileUploader"] small {{
-        color: rgba(255, 255, 255, 0.8);
-    }}
-    .formatos-suportados {{
-        text-align: left;
-        margin-top: 1.5rem;
-        font-size: 0.9rem;
-        color: rgba(255, 255, 255, 0.9);
-    }}
+    .upload-box [data-testid="stFileUploader"] small {{ color: rgba(255, 255, 255, 0.8); }}
+    .formatos-suportados {{ text-align: left; margin-top: 1.5rem; font-size: 0.9rem; color: rgba(255, 255, 255, 0.9); }}
     .formatos-suportados strong {{ color: white; }}
     .formatos-suportados li {{ margin-left: 20px; }}
 
-    /* Estilos dos outros componentes (sem alteração) */
-    .stButton > button {{ border-radius: 8px; padding: 8px 20px; font-weight: 600; transition: all 0.2s ease-in-out; }}
-    .stButton > button:hover {{ filter: brightness(1.1); }}
+    /* --- RELATÓRIO DE PROCESSAMENTO --- */
     .report-container {{ max-height: 400px; overflow-y: auto; padding-right: 10px; }}
     .report-item {{ display: flex; align-items: center; padding: 12px; margin-bottom: 8px; border-radius: 8px; border: 1px solid; }}
     .report-item-icon {{ display: flex; justify-content: center; align-items: center; min-width: 24px; height: 24px; border-radius: 50%; margin-right: 12px; font-weight: bold; color: white; }}
@@ -107,12 +184,34 @@ st.markdown(f"""
     .report-item-info .report-item-icon {{ background-color: #007B9E; }}
     .report-item-warning {{ background-color: #fff3cd; border-color: #ffda77; }}
     .report-item-warning .report-item-icon {{ background-color: #FFAA00; }}
-    .stDownloadButton > button {{ background-color: #B3D10D !important; color: #2D2D2D !important; font-size: 1.1rem !important; font-weight: 700 !important; padding: 1rem !important; border-radius: 12px !important; border: none !important; width: 100%; }}
+    .stDownloadButton > button {{
+        background-color: var(--upload-button-color) !important;
+        color: var(--upload-button-text-color) !important;
+        font-size: 1.1rem !important;
+        font-weight: 700 !important;
+        padding: 1rem !important;
+        border-radius: 12px !important;
+        border: none !important;
+        width: 100%;
+    }}
     .stDownloadButton > button:hover {{ filter: brightness(1.05); color: #000 !important; }}
+    
+    /* ATUALIZADO: Cor dos inputs numéricos na tabela de grupos */
+    [data-testid="stNumberInput"] > div > input {{
+        background-color: var(--upload-button-color) !important; /* Amarelo-esverdeado */
+        color: var(--upload-button-text-color) !important; /* Texto escuro */
+        border: none !important;
+        border-radius: 8px !important;
+        padding: 8px 12px !important;
+        font-weight: 600 !important;
+    }}
+    [data-testid="stNumberInput"] > div > input:focus {{
+        box-shadow: 0 0 0 2px var(--accent-teal) !important;
+    }}
+
 </style>
 """, unsafe_allow_html=True)
 
-# (O restante do código Python, incluindo as funções de processamento, permanece o mesmo)
 # --- Funções auxiliares (sem alteração) ---
 def load_sequentials(file_path=STATE_FILE):
     if os.path.exists(file_path):
@@ -245,6 +344,7 @@ with col1:
             g_cols[1].write(desc)
             key = f"seq_{g}_v{version}"
             init_val = int(st.session_state.get(key, json_state.get(g, 0)))
+            # ATUALIZADO: Usando número de input com o novo estilo
             g_cols[2].number_input(f"seq_{g}", min_value=0, max_value=MAX_SEQ, value=init_val, step=1, key=key, label_visibility="collapsed")
 
     if "last_report" in st.session_state:
@@ -260,14 +360,13 @@ with col1:
 
 # --- Coluna da Direita ---
 with col2:
-    # --- ATUALIZADO: Bloco de Upload com novo estilo ---
     with st.container(border=True):
         st.markdown('<div class="upload-box">', unsafe_allow_html=True)
         st.subheader("1. Carregar Arquivo")
         uploaded_file = st.file_uploader(
-            "Arraste e solte seu arquivo aqui ou clique para selecionar",
+            "Arraste e solte seu arquivo aqui ou clique para selecionar um arquivo TXT ou XLSX",
             type=['txt', 'xlsx'],
-            label_visibility="visible" # Label é o texto principal
+            label_visibility="visible"
         )
         st.markdown("""
         <div class="formatos-suportados">
@@ -290,13 +389,19 @@ with col2:
 
     if "available_columns" in st.session_state:
         with st.container(border=True):
+            # NOVO: Cabeçalho do seletor de colunas com a cor de fundo do card
+            st.markdown(f'<div style="background-color: var(--light-green-card); padding: 0 0 10px 0; border-radius: 12px 12px 0 0;">', unsafe_allow_html=True)
             head_cols = st.columns([1,1])
-            head_cols[0].subheader("3. Selecionar Colunas")
+            head_cols[0].markdown("<h3 style='margin-top: 0;'>3. Selecionar Colunas</h3>", unsafe_allow_html=True)
             if head_cols[1].button("Resetar Seleção", key="reset_cols", use_container_width=True):
                 for col in st.session_state.available_columns:
                     st.session_state[f"col_select_{col}"] = True
                 st.session_state.select_all_cols = True
                 st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True) # Fecha o div do cabeçalho
+            
+            # Ajuste para manter o checkbox 'Selecionar todas' na cor correta do card
+            st.markdown(f'<div style="background-color: var(--light-green-card); padding: 0 25px 0 25px; border-radius: 0 0 12px 12px;">', unsafe_allow_html=True)
             select_all = st.checkbox("Selecionar todas", key="select_all_cols", value=st.session_state.get("select_all_cols", True))
             st.markdown("---")
             all_cols = st.session_state.available_columns
@@ -313,13 +418,14 @@ with col2:
             st.session_state.selected_columns = [c for c in all_cols if st.session_state.get(f"col_select_{c}", True)]
             st.markdown("---")
             st.caption(f"**{len(st.session_state.selected_columns)} de {len(all_cols)} colunas selecionadas**")
+            st.markdown('</div>', unsafe_allow_html=True) # Fecha o div do conteúdo do card
 
 # --- Seção de Dados e Download ---
 if "last_df_processed" in st.session_state:
     st.markdown("---")
     st.subheader("Resultados")
     with st.container(border=True):
-        st.markdown('<div style="background-color: #256D7B; padding: 20px; border-radius: 12px; color:white;">', unsafe_allow_html=True)
+        st.markdown('<div class="card-dark-results" style="padding: 20px; border-radius: 12px;">', unsafe_allow_html=True)
         st.write("<h3 style='color:white;'>📄 Dados Processados</h3>", unsafe_allow_html=True)
         dl_cols = st.columns(2)
         df_to_export = pd.read_json(io.StringIO(st.session_state["last_df_processed"]), orient='split')[st.session_state.selected_columns]
