@@ -253,6 +253,10 @@ def process_codes(df, sequentials, json_state, column_report):
     report_log = list(column_report)
     report_log.append("--- Início do Processamento de Códigos ---")
 
+    if 'PROCESSO' not in df.columns or df.empty:
+        report_log.append("❌ Erro: DataFrame vazio ou coluna 'PROCESSO' ausente.")
+        return pd.DataFrame(), report_log
+
     for g in list(sequentials.keys()):
         sequentials[g] = max(int(sequentials[g]), int(json_state.get(g, 0)))
 
