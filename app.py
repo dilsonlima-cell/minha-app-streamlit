@@ -17,166 +17,104 @@ COLUNAS_OBRIGATORIAS = [
     'PROCESSO', 'GRUPO DE PRODUTO'
 ]
 
-# --- Estilo (Baseado na imagem do novo layout) ---
+# --- Estilo (Inspirado no novo layout React) ---
 st.set_page_config(layout="wide", page_title="SolidWorks BOM Processor")
 
-# Carregando a imagem do logo e convertendo para base64 para embutir no HTML
+# Função para converter imagens para base64
 def get_image_as_base64(path):
     try:
         with open(path, "rb") as f:
             data = f.read()
         return base64.b64encode(data).decode()
     except IOError:
-        # Retorna um SVG placeholder se a imagem não for encontrada
-        return "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCAyMDAgNTAiPgo8cGF0aCBmaWxsPSIjMDBBRUVGIiBkPSJNMjUsMEMxMS4xOSwwLDAsMTEuMTksMCwyNVMxMS4xOSw1MCwyNSw1MFM1MCwzOC4xMSw1MCwyNVMyNSwwLDAsMjVaIE0yNSw0M0ExOCwxOCwwLDEsMSw0MywyNSwxOCwxOCwwLDAsMSwyNSw0M1oiLz4KPHRleHQgeD0iNjAiIHk9IjMzIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiMzMzMiPjxwcmVjaXNvPC90ZXh0Pgo8L3N2Zz4="
+        return None # Retorna None se a imagem não for encontrada
 
-logo_base64 = get_image_as_base64("logo.png")
+# --- ATUALIZADO: Carregando imagens ---
+logo_base64 = get_image_as_base64("logo.png") # Opcional, para o placeholder
+hero_image_base64 = get_image_as_base64("hero-solidworks.jpg")
+
+hero_style = ""
+if hero_image_base64:
+    hero_style = f"""
+    background-image: linear-gradient(rgba(40, 40, 40, 0.8), rgba(40, 40, 40, 0.7)), url(data:image/jpeg;base64,{hero_image_base64});
+    background-size: cover;
+    background-position: center;
+    """
+else:
+    # Estilo fallback caso a imagem não exista
+    hero_style = "background: linear-gradient(45deg, #256D7B, #7E8C54);"
 
 
+# --- ATUALIZADO: CSS Moderno ---
 st.markdown(f"""
 <style>
     /* --- GERAL --- */
     .stApp {{
-        background-color: #7E8C54; /* Verde Musgo */
+        background-color: #f0f2f6; /* Fundo mais claro */
         color: #333;
     }}
     h1, h2, h3 {{
-        color: #FFFFFF !important;
+        color: #1a202c !important;
     }}
-    .card h1, .card h2, .card h3 {{
-        color: #2D2D2D !important; /* Mantém a cor escura dentro dos cards brancos */
-    }}
-
-
-    /* --- BOTÕES --- */
     .stButton > button {{
-        border-radius: 5px;
+        border-radius: 8px;
         padding: 10px 24px;
         font-weight: 600;
         width: 100%;
         transition: all 0.2s ease-in-out;
     }}
-
-    /* --- CONTAINERS E CARDS --- */
-    .main-container {{
-        display: flex;
-        flex-direction: row;
-        gap: 20px;
+    .stButton > button:hover {{
+        filter: brightness(1.1);
     }}
-    .column {{
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-    }}
+    
+    /* --- CARD STYLES --- */
     .card {{
         background-color: #FFFFFF;
-        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
         padding: 25px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+        margin-bottom: 20px; /* Adiciona espaçamento entre os cards */
     }}
-    .dark-card {{
-        background-color: #256D7B; /* Verde Azulado */
-        border-radius: 8px;
-        padding: 25px;
-        color: #FFFFFF;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    }}
-    .dark-card h3 {{
-        color: #FFFFFF !important;
-    }}
-
+    
     /* --- HEADER --- */
-    .header-container img {{
-        max-height: 50px;
+    .hero-header {{
+        {hero_style}
+        padding: 4rem 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
     }}
-    .header-container h1 {{
-        font-size: 2.5rem;
+    .hero-header h1 {{
+        font-size: 2.8rem;
         font-weight: 700;
-        margin: 0;
-        line-height: 1.1;
         color: #FFFFFF !important;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.4);
     }}
-    .header-container p {{
-        font-size: 1rem;
-        color: #E0E0E0;
-        margin: 0;
+    .hero-header p {{
+        font-size: 1.2rem;
+        color: rgba(255, 255, 255, 0.9) !important;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        max-width: 600px;
     }}
-
+    
     /* --- UPLOADER DE ARQUIVO --- */
     [data-testid="stFileUploader"] {{
-        background-color: #256D7B; /* Verde Azulado */
-        border: 2px dashed #4E8A96;
+        border: 2px dashed #cbd5e0;
         border-radius: 8px;
         padding: 20px;
     }}
-    [data-testid="stFileUploader"] section {{
-        background-color: #256D7B; /* Verde Azulado */
-        color: #fff;
-    }}
-    [data-testid="stFileUploader"] label {{
-        font-weight: bold;
-        color: #B3D10D !important;
-        margin-bottom: 10px;
-        display: block;
-    }}
-    [data-testid="stFileUploader"] button {{
-        background-color: #333;
-        color: #fff;
-        border: 1px solid #555;
-    }}
-
-    /* --- TABELA DE GRUPOS --- */
-    [data-testid="stNumberInput"] input {{
-        background-color: #2D2D2D !important;
-        color: #FFFFFF !important;
-        border: 1px solid #555 !important;
-        border-radius: 4px;
-    }}
-    [data-testid="stNumberInput"] button {{
-        background-color: #444 !important;
-        color: #fff !important;
-        border: 1px solid #555 !important;
-    }}
     
-    /* --- DATAFRAME --- */
-    [data-testid="stDataFrame"] {{
-        background-color: #256D7B; /* Verde Azulado */
-        border-radius: 8px;
-    }}
-    [data-testid="stDataFrame"] table {{
-        color: #E0E0E0;
-    }}
-    [data-testid="stDataFrame"] thead th {{
-        background-color: #1A4A53; /* Tom mais escuro de Verde Azulado */
-        color: #B3D10D;
-        font-weight: bold;
-        border-bottom: 2px solid #B3D10D;
-    }}
-    [data-testid="stDataFrame"] tbody tr:nth-of-type(even) {{
-        background-color: #2F7C8A; /* Tom mais claro de Verde Azulado */
-    }}
-     [data-testid="stDataFrame"] tbody tr:nth-of-type(odd) {{
-        background-color: #256D7B; /* Verde Azulado */
-    }}
-    [data-testid="stDataFrame"] tbody tr:hover td {{
-        background-color: #404040;
-    }}
-    [data-testid="stDataFrame"] tbody td {{
-        border-color: #333;
-    }}
-
     /* --- RELATÓRIO --- */
-    .report-item-success, .report-item-info, .report-item-warning, .report-item-error {{
-        padding: 15px;
-        margin-bottom: 10px;
+    .report-item {{
+        padding: 12px;
+        margin-bottom: 8px;
         border-radius: 5px;
         border-left: 5px solid;
     }}
-    .report-item-success {{ background-color: #E6F3D8; border-color: #6E9B44; }}
-    .report-item-info {{ background-color: #E0F2F7; border-color: #007B9E; }}
-    .report-item-warning {{ background-color: #FFF3CD; border-color: #FFAA00; }}
-    .report-item-error {{ background-color: #F8D7DA; border-color: #D9534F; }}
-
+    .report-item-success {{ background-color: #f0fff4; border-color: #38a169; }}
+    .report-item-info {{ background-color: #ebf8ff; border-color: #3182ce; }}
+    .report-item-warning {{ background-color: #fffaf0; border-color: #dd6b20; }}
+    .report-item-error {{ background-color: #fff5f5; border-color: #c53030; }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -184,10 +122,8 @@ st.markdown(f"""
 def load_sequentials(file_path=STATE_FILE):
     if os.path.exists(file_path):
         with open(file_path, "r", encoding="utf-8") as f:
-            try:
-                return json.load(f)
-            except json.JSONDecodeError:
-                return {}
+            try: return json.load(f)
+            except json.JSONDecodeError: return {}
     return {}
 
 def save_sequentials(data, file_path=STATE_FILE):
@@ -199,75 +135,55 @@ def save_sequentials(data, file_path=STATE_FILE):
 def load_data(uploaded_file):
     if uploaded_file is None:
         return None, [], "Nenhum arquivo carregado."
-    
-    report_log = []
-    df = None
+    report_log, df = [], None
     try:
         name = uploaded_file.name.lower()
-        if name.endswith(".xlsx"):
-            df = pd.read_excel(uploaded_file)
+        if name.endswith(".xlsx"): df = pd.read_excel(uploaded_file)
         elif name.endswith(".txt"):
             content = uploaded_file.getvalue().decode('utf-8').splitlines()
             header = [h.strip() for h in content[-1].split('\t')]
-            data_lines = content[:-1]
-            parsed_data = [
-                (line.split('\t') + [''] * len(header))[:len(header)]
-                for line in data_lines if line.strip()
-            ]
-            df = pd.DataFrame(parsed_data, columns=header)
-            df = df.iloc[::-1].reset_index(drop=True)
-        else:
-            return None, [], "Formato de arquivo não suportado."
+            data_lines = [l for l in content[:-1] if l.strip()]
+            parsed_data = [(line.split('\t') + [''] * len(header))[:len(header)] for line in data_lines]
+            df = pd.DataFrame(parsed_data, columns=header).iloc[::-1].reset_index(drop=True)
+        else: return None, [], "Formato de arquivo não suportado."
 
-        colunas_originais = set(df.columns)
-        colunas_obrigatorias_set = set(COLUNAS_OBRIGATORIAS)
-        colunas_ausentes = colunas_obrigatorias_set - colunas_originais
-        if colunas_ausentes:
-            report_log.append(f"⚠️ Colunas ausentes (criadas vazias): **{', '.join(sorted(list(colunas_ausentes)))}**")
-            for col in sorted(list(colunas_ausentes)):
-                df[col] = ''
-
-        ordem_final = COLUNAS_OBRIGATORIAS + sorted(list(colunas_originais - colunas_obrigatorias_set))
-        df = df[ordem_final]
-        df['QTD.'] = pd.to_numeric(df['QTD.'], errors='coerce').fillna(0)
+        missing_cols = set(COLUNAS_OBRIGATORIAS) - set(df.columns)
+        if missing_cols:
+            report_log.append(f"⚠️ Colunas ausentes (criadas vazias): **{', '.join(sorted(list(missing_cols)))}**")
+            for col in sorted(list(missing_cols)): df[col] = ''
         
+        final_order = COLUNAS_OBRIGATORIAS + sorted(list(set(df.columns) - set(COLUNAS_OBRIGATORIAS)))
+        df = df[final_order]
+        df['QTD.'] = pd.to_numeric(df['QTD.'], errors='coerce').fillna(0)
         return df, report_log, "Arquivo lido com sucesso."
     except Exception as e:
         return None, [], f"Erro ao ler o arquivo: {e}"
 
-# --- process logic (Funcionalidade Original Mantida) ---
+# --- process logic ---
 def process_codes(df, sequentials, json_state, column_report):
-    if df is None or df.empty:
-        return pd.DataFrame(), [], "DataFrame vazio."
-
+    if df is None or df.empty: return pd.DataFrame(), [], "DataFrame vazio."
     report_log = list(column_report)
-    report_log.append("--- Início do Processamento de Códigos ---")
-
-    for g in list(sequentials.keys()):
+    for g in sequentials.keys():
         sequentials[g] = max(int(sequentials[g]), int(json_state.get(g, 0)))
 
     group_pattern = re.compile(r'(\d{3})')
     manufactured_pattern = re.compile(r'^\d{2}-\d{4}-\d{4}-.*')
     commercial_pattern = re.compile(r'^\d{3}-(\d+)$')
-
-    df['PROCESSO'] = df['PROCESSO'].astype(str).str.strip().str.upper()
-    linhas_vazias = df['PROCESSO'].isin(['', 'NAN', None]) | pd.isna(df['PROCESSO'])
     
-    count_preenchido = 0
-    for i in df[linhas_vazias].index:
+    df['PROCESSO'] = df['PROCESSO'].astype(str).str.strip().str.upper()
+    empty_process = df['PROCESSO'].isin(['', 'NAN', None]) | pd.isna(df['PROCESSO'])
+    
+    count_filled = 0
+    for i in df[empty_process].index:
         is_manufactured = manufactured_pattern.match(str(df.loc[i, 'Nº DA PEÇA']))
         df.loc[i, 'PROCESSO'] = 'FABRICADO' if is_manufactured else 'COMERCIAL'
-        count_preenchido += 1
+        count_filled += 1
+    if count_filled > 0: report_log.append(f"✔️ 'PROCESSO' preenchido para **{count_filled}** itens.")
     
-    if count_preenchido > 0:
-        report_log.append(f"✔️ Coluna 'PROCESSO' preenchida para **{count_preenchido}** itens.")
-
     df['CÓDIGO FINAL'] = 'NULO'
-    
     for _, row in df.iterrows():
         num = str(row.get('Nº DA PEÇA',''))
-        m = commercial_pattern.match(num)
-        if m:
+        if m := commercial_pattern.match(num):
             try:
                 group, seq_str = num.split('-')
                 sequentials[group] = max(sequentials.get(group, 0), int(seq_str))
@@ -277,26 +193,19 @@ def process_codes(df, sequentials, json_state, column_report):
         if row['PROCESSO'] == 'FABRICADO':
             df.loc[i, 'CÓDIGO FINAL'] = row.get('Nº DA PEÇA', '')
             continue
-
         num = str(row.get('Nº DA PEÇA',''))
-        m_direct = commercial_pattern.match(num)
-        if m_direct and len(m_direct.group(1)) == 6:
+        if (m_direct := commercial_pattern.match(num)) and len(m_direct.group(1)) == 6:
             df.loc[i, 'CÓDIGO FINAL'] = num
             continue
-
-        m = group_pattern.search(str(row.get('GRUPO DE PRODUTO','')))
-        if m:
+        if m := group_pattern.search(str(row.get('GRUPO DE PRODUTO',''))):
             g = m.group(1)
-            next_code = int(sequentials.get(g, 0)) + 1
-            while f"{g}-{next_code:06d}" in df['CÓDIGO FINAL'].values:
-                next_code += 1
-            if next_code > MAX_SEQ:
-                raise Exception(f"Limite de 6 dígitos atingido para o grupo {g}.")
-            
+            next_code = sequentials.get(g, 0) + 1
+            while f"{g}-{next_code:06d}" in df['CÓDIGO FINAL'].values: next_code += 1
+            if next_code > MAX_SEQ: raise Exception(f"Limite de 6 dígitos atingido para o grupo {g}.")
             sequentials[g] = next_code
             new_code = f"{g}-{sequentials[g]:06d}"
             df.loc[i, 'CÓDIGO FINAL'] = new_code
-            report_log.append(f"✔️ '{row.get('TÍTULO','')}' recebeu o código: {new_code}")
+            report_log.append(f"✔️ '{row.get('TÍTULO','')}' recebeu o código: **{new_code}**")
         else:
             report_log.append(f"⚠️ '{row.get('TÍTULO','')}' COMERCIAL sem grupo -> NULO")
 
@@ -306,25 +215,18 @@ def process_codes(df, sequentials, json_state, column_report):
         parts = item_id.split('.')
         while len(parts) > 1:
             parts.pop()
-            parent = '.'.join(parts)
-            if parent in code_map: return code_map[parent]
+            if (parent := '.'.join(parts)) in code_map: return code_map[parent]
         return ""
     df['CÓDIGO PAI'] = df['Nº DO ITEM'].apply(find_parent_code)
-
-    def get_tipo(row):
-        if row['PROCESSO'] == 'FABRICADO': return 1
-        if row['PROCESSO'] == 'COMERCIAL' and row['CÓDIGO FINAL'] != 'NULO': return 2
-        return 3
-    df['TIPO'] = df.apply(get_tipo, axis=1)
+    
+    df['TIPO'] = df.apply(lambda r: 1 if r['PROCESSO'] == 'FABRICADO' else 2 if r['CÓDIGO FINAL'] != 'NULO' else 3, axis=1)
     df = df.sort_values(by=['TIPO','CÓDIGO FINAL']).drop(columns=['TIPO']).reset_index(drop=True)
-    for col in df.select_dtypes(include=['object']):
-        df[col] = df[col].astype(str).str.upper()
+    for col in df.select_dtypes(include=['object']): df[col] = df[col].astype(str).str.upper()
 
     save_sequentials({k:int(v) for k,v in sequentials.items()})
-    report_log.append("💾 Sequenciais atualizados no arquivo estado_sequenciais.json")
-
-    num_codes_generated = len([l for l in report_log if l.startswith("✔️ '")])
-    report_log.insert(0, f"✅ Processamento concluído. {num_codes_generated} novos códigos comerciais foram gerados.")
+    report_log.append("💾 Sequenciais atualizados no arquivo.")
+    num_codes = len([l for l in report_log if l.startswith("✔️ '")])
+    report_log.insert(0, f"✅ Processamento concluído. **{num_codes}** novos códigos gerados.")
     return df, report_log
 
 @st.cache_data
@@ -334,151 +236,127 @@ def to_excel(df):
         df.to_excel(w, index=False, sheet_name='Lista de Peças')
     return out.getvalue()
 
+# --- ATUALIZADO: Interface --- #
 
-# --- Interface --- #
+# --- NOVO: Cabeçalho Hero ---
+st.markdown("""
+<div class="hero-header">
+    <h1>SolidWorks BOM Processor</h1>
+    <p>Processamento automático de listas de materiais exportadas do SolidWorks.</p>
+</div>
+""", unsafe_allow_html=True)
 
-# --- HEADER ---
-header_cols = st.columns([1, 4])
-with header_cols[0]:
-    st.markdown(f'<div class="header-container"><img src="{logo_base64}" alt="Logo Preciso"></div>', unsafe_allow_html=True)
-with header_cols[1]:
-    st.markdown('<div class="header-container"><h1>SolidWorks BOM Processor</h1><p>PROCESSAMENTO AUTOMÁTICO DE LISTAS DE MATERIAIS EXPORTADAS DO SOLIDWORKS</p></div>', unsafe_allow_html=True)
+# --- NOVO: Layout de duas colunas para controles ---
+col1, col2 = st.columns([5, 7])
 
-st.write("---")
-
-# --- MAIN LAYOUT ---
-col1, col2 = st.columns([1, 1.2])
-
+# --- Coluna da Esquerda (Configurações e Relatório) ---
 with col1:
-    with st.container():
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("Tabela de Grupos – Próximo Código")
-        
-        group_table = {
-            "100": "Mecânico", "200": "Elétrico", "300": "Hidráulico Água",
-            "400": "Hidráulico Óleo", "500": "Pneumático", "600": "Tecnologia",
-            "700": "Infraestrutura", "800": "Insumos", "900": "Segurança", "950": "Serviço"
-        }
-        json_state = load_sequentials()
-        if "version" not in st.session_state: st.session_state["version"] = 0
-        version = int(st.session_state["version"])
-
-        t_cols = st.columns([1, 2, 2])
-        t_cols[0].markdown("**Grupo**")
-        t_cols[1].markdown("**Descrição**")
-        t_cols[2].markdown("**Próximo Código**")
-        
-        for g, desc in group_table.items():
-            g_cols = st.columns([1, 2, 2])
-            g_cols[0].write(g)
-            g_cols[1].write(desc)
-            key = f"seq_{g}_v{version}"
-            init_val = int(st.session_state.get(key, json_state.get(g, 0)))
-            g_cols[2].number_input(f"Próximo código {g}", min_value=0, max_value=MAX_SEQ, value=init_val, step=1, key=key, label_visibility="collapsed")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-    if "last_report" in st.session_state:
-        with st.container():
-             st.markdown('<div class="card">', unsafe_allow_html=True)
-             st.subheader("Relatório de Processamento")
-             for log in st.session_state["last_report"]:
-                 if log.startswith("✔️") or log.startswith("✅"): st.markdown(f'<div class="report-item-success">{log}</div>', unsafe_allow_html=True)
-                 elif log.startswith("⚠️"): st.markdown(f'<div class="report-item-warning">{log}</div>', unsafe_allow_html=True)
-                 elif log.startswith("❌"): st.markdown(f'<div class="report-item-error">{log}</div>', unsafe_allow_html=True)
-                 else: st.markdown(f'<div class="report-item-info">{log}</div>', unsafe_allow_html=True)
-             st.markdown('</div>', unsafe_allow_html=True)
-
-with col2:
-    with st.container():
-        st.markdown('<div class="dark-card">', unsafe_allow_html=True)
-        uploaded_file = st.file_uploader("1. Carregar Arquivo", type=['txt', 'xlsx'], help="Arraste e solte ou clique para selecionar o arquivo TXT ou XLSX exportado do SolidWorks")
-        st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.subheader("⚙️ Tabela de Grupos – Próximo Código")
     
-    # <-- ALTERAÇÃO INÍCIO: Botões movidos para a coluna 2 -->
-    with st.container():
+    group_table = {
+        "100":"Mecânico", "200":"Elétrico", "300":"Hidráulico Água", "400":"Hidráulico Óleo",
+        "500":"Pneumático", "600":"Tecnologia", "700":"Infraestrutura", "800":"Insumos",
+        "900":"Segurança", "950":"Serviço"
+    }
+    json_state = load_sequentials()
+    if "version" not in st.session_state: st.session_state["version"] = 0
+    version = st.session_state["version"]
+
+    t_cols = st.columns([1, 2, 2])
+    t_cols[0].markdown("**Grupo**")
+    t_cols[1].markdown("**Descrição**")
+    t_cols[2].markdown("**Próximo Nº**")
+    
+    for g, desc in group_table.items():
+        g_cols = st.columns([1, 2, 2])
+        g_cols[0].write(f"`{g}`")
+        g_cols[1].write(desc)
+        key = f"seq_{g}_v{version}"
+        init_val = int(st.session_state.get(key, json_state.get(g, 0)))
+        g_cols[2].number_input(f"seq_{g}", min_value=0, max_value=MAX_SEQ, value=init_val, step=1, key=key, label_visibility="collapsed")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    if "last_report" in st.session_state:
         st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("2. Começar Processamento")
-        st.write("Configure os grupos à esquerda e clique em Processar.")
-
-        def increment_version():
-            st.session_state["version"] += 1
-        
-        b_cols = st.columns(2)
-        with b_cols[0]:
-            st.markdown('<div class="btn-process">', unsafe_allow_html=True)
-            process_clicked = st.button("Processar", help="Inicia o processamento do arquivo carregado")
-            st.markdown('</div>', unsafe_allow_html=True)
-        with b_cols[1]:
-            st.markdown('<div class="btn-reset">', unsafe_allow_html=True)
-            if st.button("Resetar Inputs (Limpar)", on_click=increment_version, help="Limpa os campos de 'Próximo Código' para os valores salvos"):
-                st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
-
+        st.subheader("📊 Relatório de Processamento")
+        for log in st.session_state["last_report"]:
+            if   log.startswith("✔️") or log.startswith("✅"): st.markdown(f'<div class="report-item report-item-success">{log}</div>', unsafe_allow_html=True)
+            elif log.startswith("⚠️"): st.markdown(f'<div class="report-item report-item-warning">{log}</div>', unsafe_allow_html=True)
+            elif log.startswith("❌"): st.markdown(f'<div class="report-item report-item-error">{log}</div>', unsafe_allow_html=True)
+            else: st.markdown(f'<div class="report-item report-item-info">{log}</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
-    # <-- ALTERAÇÃO FIM -->
+
+# --- Coluna da Direita (Ações) ---
+with col2:
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.subheader("📤 1. Carregar Arquivo")
+    uploaded_file = st.file_uploader(
+        "Arraste ou selecione o arquivo TXT ou XLSX",
+        type=['txt', 'xlsx'],
+        label_visibility="collapsed"
+    )
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.subheader("⚡ 2. Controle de Processamento")
+    st.write("Configure os grupos à esquerda e clique para iniciar.")
+    
+    b_cols = st.columns(2)
+    process_clicked = b_cols[0].button("Processar Arquivo", type="primary", use_container_width=True)
+    if b_cols[1].button("Resetar Campos", use_container_width=True):
+        st.session_state["version"] += 1
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
     if "available_columns" in st.session_state:
-        with st.container():
-            st.markdown('<div class="card">', unsafe_allow_html=True)
-            st.subheader("3. Selecionar Colunas para Exportar")
-            st.session_state.selected_columns = st.multiselect(
-                "Escolha as colunas que deseja incluir no arquivo final:",
-                options=st.session_state.available_columns,
-                default=st.session_state.get("selected_columns", st.session_state.available_columns)
-            )
-            st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.subheader("📋 3. Selecionar Colunas para Exportar")
+        st.session_state.selected_columns = st.multiselect(
+            "Escolha as colunas para o arquivo final:",
+            options=st.session_state.available_columns,
+            default=st.session_state.get("selected_columns", st.session_state.available_columns),
+            label_visibility="collapsed"
+        )
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.subheader("📥 4. Exportação")
+        df_to_export = pd.read_json(io.StringIO(st.session_state["last_df_processed"]), orient='split')[st.session_state.selected_columns]
+        
+        dl_cols = st.columns(2)
+        t = datetime.now().strftime("%Y%m%d_%H%M%S")
+        excel_data = to_excel(df_to_export)
+        csv_data = df_to_export.to_csv(index=False).encode("utf-8")
+        dl_cols[0].download_button("Baixar Excel (.xlsx)", excel_data, f"lista_codificada_{t}.xlsx", use_container_width=True)
+        dl_cols[1].download_button("Baixar CSV (.csv)", csv_data, f"lista_codificada_{t}.csv", use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    if "last_df_processed" in st.session_state:
-        with st.container():
-            st.markdown('<div class="dark-card">', unsafe_allow_html=True)
-            st.subheader("Dados Processados e Exportação")
-            
-            df_processed_full = pd.read_json(io.StringIO(st.session_state["last_df_processed"]), orient='split')
-            
-            selected_cols = st.session_state.get("selected_columns", df_processed_full.columns.tolist())
-            valid_selected_cols = [col for col in selected_cols if col in df_processed_full.columns]
-            
-            df_final_display = df_processed_full[valid_selected_cols]
-
-            st.dataframe(df_final_display, use_container_width=True)
-
-            t = datetime.now().strftime("%Y%m%d_%H%M%S")
-            dl_cols = st.columns(2)
-            
-            excel_data = to_excel(df_final_display)
-            csv_data = df_final_display.to_csv(index=False).encode("utf-8")
-
-            dl_cols[0].download_button("Baixar Excel (.xlsx)", excel_data, f"lista_codificada_{t}.xlsx")
-            dl_cols[1].download_button("Baixar CSV (.csv)", csv_data, f"lista_codificada_{t}.csv")
-            st.markdown('</div>', unsafe_allow_html=True)
+# --- NOVO: Seção da Tabela de Dados (Largura Total) ---
+if "last_df_processed" in st.session_state:
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.subheader("📄 Dados Processados")
+    df_display = pd.read_json(io.StringIO(st.session_state["last_df_processed"]), orient='split')
+    st.dataframe(df_display[st.session_state.get("selected_columns", df_display.columns.tolist())], use_container_width=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 
-# --- LÓGICA DE PROCESSAMENTO (quando o botão é clicado) ---
-if 'process_clicked' not in locals():
-    process_clicked = False
-    
+# --- Lógica de Processamento ---
 if process_clicked:
     if uploaded_file is None:
-        st.error("Por favor, carregue um arquivo antes de processar.")
+        st.toast("⚠️ Por favor, carregue um arquivo antes de processar.", icon="⚠️")
     else:
         sequentials = {g: int(st.session_state.get(f"seq_{g}_v{version}", 0)) for g in group_table.keys()}
         try:
             with st.spinner("Processando... Por favor, aguarde."):
-                df_raw, column_report, msg = load_data(uploaded_file)
-                if df_raw is None:
-                    st.error(msg)
-                else:
+                df_raw, column_report, _ = load_data(uploaded_file)
+                if df_raw is not None:
                     df_proc, report = process_codes(df_raw.copy(), sequentials, json_state, column_report)
                     st.session_state["last_report"] = report
-                    
                     st.session_state["last_df_processed"] = df_proc.to_json(orient='split', date_format='iso')
                     st.session_state["available_columns"] = df_proc.columns.tolist()
-                    
-                    if "last_df_csv" in st.session_state: del st.session_state["last_df_csv"]
-                    if "last_df_excel" in st.session_state: del st.session_state["last_df_excel"]
-
-            st.success("Processamento concluído com sucesso!")
+            st.toast("✅ Processamento concluído com sucesso!", icon="🎉")
             st.rerun()
         except Exception as e:
-            st.error(f"Ocorreu um erro durante o processamento: {e}")
+            st.toast(f"❌ Erro: {e}", icon="❌")
