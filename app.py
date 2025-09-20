@@ -113,7 +113,7 @@ st.markdown(f"""
 
     /* --- CARD STYLES --- */
     .st-emotion-cache-eah9w0 {{ /* Container para os cards na coluna */
-        background-color: var(--light-green-card); /* Cor clara para os cards */
+        background-color: #FFFFFF;
         border: 1px solid #c3d9a5;
         border-radius: 12px;
         padding: 25px;
@@ -458,3 +458,4 @@ if process_clicked:
             st.rerun()
         except Exception as e:
             st.error(f"Ocorreu um erro: {e}", icon="❌")
+
