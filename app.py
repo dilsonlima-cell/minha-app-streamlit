@@ -264,7 +264,9 @@ def process_codes(df, sequentials, json_state, column_report):
     manufactured_pattern = re.compile(r'^\d{2}-\d{4}-\d{4}-.*')
     commercial_pattern = re.compile(r'^\d{3}-(\d+)$')
 
+    # <<<--- CORREÇÃO APLICADA AQUI ---<<<
     df['PROCESSO'] = df['PROCESSO'].astype(str).str.strip().str.upper()
+    
     linhas_vazias = df['PROCESSO'].isin(['', 'NAN', None]) | pd.isna(df['PROCESSO'])
     
     count_preenchido = 0
