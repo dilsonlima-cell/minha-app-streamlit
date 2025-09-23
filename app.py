@@ -234,59 +234,45 @@ def load_data(uploaded_file):
             df = pd.read_excel(uploaded_file)
         
         elif name.endswith(".txt"):
-            # 1. Ler e decodificar o conteúdo do arquivo com fallback
             content_bytes = uploaded_file.getvalue()
             try:
                 content_str = content_bytes.decode('utf-8')
             except UnicodeDecodeError:
                 report_log.append("ℹ️ Arquivo não é UTF-8, tentando decodificar como Latin-1.")
-                content_str = content_bytes.decode('latin-1') # Fallback comum para arquivos Windows
+                content_str = content_bytes.decode('latin-1')
             
-            # 2. Remover linhas vazias e separar cabeçalho (última linha) dos dados
             lines = [line for line in content_str.splitlines() if line.strip()]
             if not lines:
                 return None, [], "Arquivo TXT está vazio ou contém apenas linhas em branco."
             
             header_line = lines[-1]
             data_lines = lines[:-1]
-            
-            # Limpa e divide o cabeçalho
             header = [h.strip() for h in header_line.split('\t')]
-            
-            # 3. Usar pandas.read_csv para uma leitura mais robusta e confiável
-            # io.StringIO trata a string de dados como se fosse um arquivo na memória
             data_io = io.StringIO("\n".join(data_lines))
             
             df = pd.read_csv(
                 data_io,
-                sep='\t',          # Define o separador como TAB
-                header=None,       # Informa que não há linha de cabeçalho nos dados
-                names=header,      # Aplica o cabeçalho que extraímos
-                engine='python',   # Usa a engine Python, que é mais flexível
-                dtype=str          # Lê todas as colunas como texto para evitar conversões erradas
+                sep='\t',
+                header=None,
+                names=header,
+                engine='python',
+                dtype=str
             )
-            
-            # 4. Inverter a ordem do DataFrame, pois o arquivo de origem é invertido
             df = df.iloc[::-1].reset_index(drop=True)
 
         else: 
             return None, [], "Formato de arquivo não suportado."
 
-        # --- O RESTO DA FUNÇÃO (VALIDAÇÃO DE COLUNAS) PERMANECE O MESMO ---
         missing_cols = set(COLUNAS_OBRIGATORIAS) - set(df.columns)
         if missing_cols:
             report_log.append(f"⚠️ Colunas obrigatórias ausentes (criadas vazias): **{', '.join(sorted(list(missing_cols)))}**")
             for col in sorted(list(missing_cols)): 
                 df[col] = ''
         
-        # Garante a ordem das colunas e converte a quantidade
-        final_order = COLUNAS_OBRIGATORIAS + sorted(list(set(df.columns) - set(COLUNAS_OBRIGATORIAS)))
-        df = df[final_order].copy() # Usar .copy() para evitar SettingWithCopyWarning
+        final_order = COLUNAS_OBRIGATORIAS + sorted(list(set(df.columns) - set(COLUNAS_OBRIGATORias)))
+        df = df[final_order].copy()
         df['QTD.'] = pd.to_numeric(df['QTD.'], errors='coerce').fillna(0)
-        
-        # Limpa possíveis valores nulos que o pandas inseriu
         df.fillna('', inplace=True)
-
         return df, report_log, "Arquivo lido com sucesso."
         
     except Exception as e: 
@@ -294,14 +280,13 @@ def load_data(uploaded_file):
         return None, [f"❌ Erro ao ler o arquivo: {e}"], f"Erro ao ler o arquivo: {e}"
 
 # ==============================================================================
-# ====================== FUNÇÃO ATUALIZADA COM A NOVA REGRA ====================
+# ======================== SEÇÃO DO CÓDIGO CORRIGIDA ===========================
 # ==============================================================================
 def process_codes(df, sequentials, json_state, column_report):
     if df is None or df.empty: return pd.DataFrame(), [], "DataFrame vazio."
     
     report_log = list(column_report)
     
-    # Garante que os sequenciais da interface ou do arquivo de estado sejam usados
     for g in sequentials.keys(): 
         sequentials[g] = max(int(sequentials[g]), int(json_state.get(g, 0)))
 
@@ -309,8 +294,8 @@ def process_codes(df, sequentials, json_state, column_report):
     group_pattern = re.compile(r'(\d{3})')
     manu_pattern = re.compile(r'^\d{2}-\d{4}-\d{4}-.*')
     comm_pattern = re.compile(r'^\d{3}-(\d+)$')
-    # NOVO: Padrão para a estrutura especial que não deve ser codificada
-    special_structure_pattern = re.compile(r'^\d{2}\.\d{4}\.[A-Za-z0-9]{4}\.\d{2}$')
+    # CORRIGIDO: Padrão com hífen para a estrutura especial
+    special_structure_pattern = re.compile(r'^\d{2}-\d{4}-[A-Za-z0-9]{4}-\d{2}$')
 
     # --- Pré-processamento da coluna PROCESSO ---
     df['PROCESSO'] = df['PROCESSO'].astype(str).str.strip().str.upper()
@@ -326,7 +311,6 @@ def process_codes(df, sequentials, json_state, column_report):
     # --- Lógica de Geração de Códigos ---
     df['CÓDIGO FINAL'] = 'NULO'
     
-    # Primeiro, percorre para aprender os sequenciais existentes
     for _, row in df.iterrows():
         num = str(row.get('Nº DA PEÇA',''))
         if m := comm_pattern.match(num):
@@ -336,34 +320,29 @@ def process_codes(df, sequentials, json_state, column_report):
             except: 
                 continue
 
-    # Agora, percorre para atribuir os códigos finais
     generated_codes_count = 0
     for i, row in df.iterrows():
-        # Itens fabricados mantêm o 'Nº DA PEÇA' original
+        num_peca = str(row.get('Nº DA PEÇA',''))
+        
+        # LÓGICA INVERTIDA: A verificação do formato especial agora tem prioridade máxima.
+        # Se o Nº DA PEÇA corresponder a YY-NNNN-XXXX-RR, ele SEMPRE manterá o código original.
+        if special_structure_pattern.match(num_peca):
+            df.loc[i, 'CÓDIGO FINAL'] = num_peca
+            continue # Pula para o próximo item, garantindo que nenhuma outra regra seja aplicada.
+
+        # Agora, checa o processo para outros casos que não se encaixam no padrão acima
         if row['PROCESSO'] == 'FABRICADO':
             df.loc[i, 'CÓDIGO FINAL'] = row.get('Nº DA PEÇA', '')
             continue
 
-        num_peca = str(row.get('Nº DA PEÇA',''))
-        
-        # =================== INÍCIO DA CORREÇÃO ===================
-        # Premissa: Itens com a estrutura YY.NNNN.XXXX.RR NÃO recebem codificação automática.
-        if special_structure_pattern.match(num_peca):
-            df.loc[i, 'CÓDIGO FINAL'] = num_peca
-            continue # Pula para o próximo item
-        # ==================== FIM DA CORREÇÃO =====================
-
-        # Itens comerciais que já têm código válido (XXX-NNNNNN) mantêm o código
         if (m_direct := comm_pattern.match(num_peca)) and len(m_direct.group(1)) == 6:
             df.loc[i, 'CÓDIGO FINAL'] = num_peca
             continue
             
-        # Codificação automática para os demais itens comerciais baseada no grupo
         if m := group_pattern.search(str(row.get('GRUPO DE PRODUTO',''))):
             g = m.group(1)
             next_code = sequentials.get(g, 0) + 1
             
-            # Garante que o próximo código não foi usado nesta mesma execução
             while f"{g}-{next_code:06d}" in df['CÓDIGO FINAL'].values: 
                 next_code += 1
             
@@ -391,11 +370,9 @@ def process_codes(df, sequentials, json_state, column_report):
     
     df['CÓDIGO PAI'] = df['Nº DO ITEM'].apply(find_parent_code)
     
-    # Ordenação final
     df['TIPO'] = df.apply(lambda r: 1 if r['PROCESSO'] == 'FABRICADO' else 2 if r['CÓDIGO FINAL'] != 'NULO' else 3, axis=1)
     df = df.sort_values(by=['TIPO','CÓDIGO FINAL']).drop(columns=['TIPO']).reset_index(drop=True)
 
-    # Limpeza final e formatação
     for col in df.select_dtypes(include=['object']): 
         df[col] = df[col].astype(str).str.upper()
 
@@ -423,7 +400,6 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-
 # Layout principal
 col1, col2 = st.columns([5, 7])
 
@@ -445,7 +421,6 @@ with col1:
             g_cols[1].write(desc)
             key = f"seq_{g}_v{version}"
             init_val = int(st.session_state.get(key, json_state.get(g, 0)))
-            # ATUALIZADO: Usando número de input com o novo estilo
             g_cols[2].number_input(f"seq_{g}", min_value=0, max_value=MAX_SEQ, value=init_val, step=1, key=key, label_visibility="collapsed")
 
     if "last_report" in st.session_state:
@@ -490,7 +465,6 @@ with col2:
 
     if "available_columns" in st.session_state:
         with st.container(border=True):
-            # NOVO: Cabeçalho do seletor de colunas com a cor de fundo do card
             st.markdown(f'<div style="background-color: var(--light-green-card); padding: 0 0 10px 0; border-radius: 12px 12px 0 0;">', unsafe_allow_html=True)
             head_cols = st.columns([1,1])
             head_cols[0].markdown("<h3 style='margin-top: 0;'>3. Selecionar Colunas</h3>", unsafe_allow_html=True)
@@ -499,9 +473,8 @@ with col2:
                     st.session_state[f"col_select_{col}"] = True
                 st.session_state.select_all_cols = True
                 st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True) # Fecha o div do cabeçalho
+            st.markdown('</div>', unsafe_allow_html=True)
             
-            # Ajuste para manter o checkbox 'Selecionar todas' na cor correta do card
             st.markdown(f'<div style="background-color: var(--light-green-card); padding: 0 25px 0 25px; border-radius: 0 0 12px 12px;">', unsafe_allow_html=True)
             select_all = st.checkbox("Selecionar todas", key="select_all_cols", value=st.session_state.get("select_all_cols", True))
             st.markdown("---")
@@ -519,7 +492,7 @@ with col2:
             st.session_state.selected_columns = [c for c in all_cols if st.session_state.get(f"col_select_{c}", True)]
             st.markdown("---")
             st.caption(f"**{len(st.session_state.selected_columns)} de {len(all_cols)} colunas selecionadas**")
-            st.markdown('</div>', unsafe_allow_html=True) # Fecha o div do conteúdo do card
+            st.markdown('</div>', unsafe_allow_html=True)
 
 # --- Seção de Dados e Download ---
 if "last_df_processed" in st.session_state:
