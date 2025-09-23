@@ -6,7 +6,7 @@ import json
 import os
 from datetime import datetime
 import math
-import base64 # Importa base64
+import base64
 
 # --- CONFIGS ---
 STATE_FILE = "estado_sequenciais.json"
@@ -224,9 +224,6 @@ def save_sequentials(data, file_path=STATE_FILE):
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
 
-# ==============================================================================
-# ====================== FUNÇÃO MODIFICADA ABAIXO ==============================
-# ==============================================================================
 @st.cache_data
 def load_data(uploaded_file):
     if uploaded_file is None: return None, [], "Nenhum arquivo carregado."
@@ -296,11 +293,26 @@ def load_data(uploaded_file):
         st.error(f"Ocorreu um erro crítico ao ler o arquivo: {e}")
         return None, [f"❌ Erro ao ler o arquivo: {e}"], f"Erro ao ler o arquivo: {e}"
 
+# ==============================================================================
+# ====================== FUNÇÃO ATUALIZADA COM A NOVA REGRA ====================
+# ==============================================================================
 def process_codes(df, sequentials, json_state, column_report):
     if df is None or df.empty: return pd.DataFrame(), [], "DataFrame vazio."
+    
     report_log = list(column_report)
-    for g in sequentials.keys(): sequentials[g] = max(int(sequentials[g]), int(json_state.get(g, 0)))
-    group_pattern, manu_pattern, comm_pattern = re.compile(r'(\d{3})'), re.compile(r'^\d{2}-\d{4}-\d{4}-.*'), re.compile(r'^\d{3}-(\d+)$')
+    
+    # Garante que os sequenciais da interface ou do arquivo de estado sejam usados
+    for g in sequentials.keys(): 
+        sequentials[g] = max(int(sequentials[g]), int(json_state.get(g, 0)))
+
+    # --- Padrões Regex ---
+    group_pattern = re.compile(r'(\d{3})')
+    manu_pattern = re.compile(r'^\d{2}-\d{4}-\d{4}-.*')
+    comm_pattern = re.compile(r'^\d{3}-(\d+)$')
+    # NOVO: Padrão para a estrutura especial que não deve ser codificada
+    special_structure_pattern = re.compile(r'^\d{2}\.\d{4}\.[A-Za-z0-9]{4}\.\d{2}$')
+
+    # --- Pré-processamento da coluna PROCESSO ---
     df['PROCESSO'] = df['PROCESSO'].astype(str).str.strip().str.upper()
     empty_process = df['PROCESSO'].isin(['', 'NAN', None]) | pd.isna(df['PROCESSO'])
     count_filled = 0
@@ -308,47 +320,88 @@ def process_codes(df, sequentials, json_state, column_report):
         is_manu = manu_pattern.match(str(df.loc[i, 'Nº DA PEÇA']))
         df.loc[i, 'PROCESSO'] = 'FABRICADO' if is_manu else 'COMERCIAL'
         count_filled += 1
-    if count_filled > 0: report_log.append(f"✔️ Coluna 'PROCESSO' preenchida para {count_filled} itens.")
+    if count_filled > 0: 
+        report_log.append(f"✔️ Coluna 'PROCESSO' preenchida para {count_filled} itens.")
+
+    # --- Lógica de Geração de Códigos ---
     df['CÓDIGO FINAL'] = 'NULO'
+    
+    # Primeiro, percorre para aprender os sequenciais existentes
     for _, row in df.iterrows():
         num = str(row.get('Nº DA PEÇA',''))
         if m := comm_pattern.match(num):
             try:
                 group, seq_str = num.split('-')
                 sequentials[group] = max(sequentials.get(group, 0), int(seq_str))
-            except: continue
+            except: 
+                continue
+
+    # Agora, percorre para atribuir os códigos finais
+    generated_codes_count = 0
     for i, row in df.iterrows():
+        # Itens fabricados mantêm o 'Nº DA PEÇA' original
         if row['PROCESSO'] == 'FABRICADO':
             df.loc[i, 'CÓDIGO FINAL'] = row.get('Nº DA PEÇA', '')
             continue
-        num = str(row.get('Nº DA PEÇA',''))
-        if (m_direct := comm_pattern.match(num)) and len(m_direct.group(1)) == 6:
-            df.loc[i, 'CÓDIGO FINAL'] = num
+
+        num_peca = str(row.get('Nº DA PEÇA',''))
+        
+        # =================== INÍCIO DA CORREÇÃO ===================
+        # Premissa: Itens com a estrutura YY.NNNN.XXXX.RR NÃO recebem codificação automática.
+        if special_structure_pattern.match(num_peca):
+            df.loc[i, 'CÓDIGO FINAL'] = num_peca
+            continue # Pula para o próximo item
+        # ==================== FIM DA CORREÇÃO =====================
+
+        # Itens comerciais que já têm código válido (XXX-NNNNNN) mantêm o código
+        if (m_direct := comm_pattern.match(num_peca)) and len(m_direct.group(1)) == 6:
+            df.loc[i, 'CÓDIGO FINAL'] = num_peca
             continue
+            
+        # Codificação automática para os demais itens comerciais baseada no grupo
         if m := group_pattern.search(str(row.get('GRUPO DE PRODUTO',''))):
             g = m.group(1)
             next_code = sequentials.get(g, 0) + 1
-            while f"{g}-{next_code:06d}" in df['CÓDIGO FINAL'].values: next_code += 1
-            if next_code > MAX_SEQ: raise Exception(f"Limite de 6 dígitos atingido para o grupo {g}.")
+            
+            # Garante que o próximo código não foi usado nesta mesma execução
+            while f"{g}-{next_code:06d}" in df['CÓDIGO FINAL'].values: 
+                next_code += 1
+            
+            if next_code > MAX_SEQ: 
+                raise Exception(f"Limite de 6 dígitos atingido para o grupo {g}.")
+            
             sequentials[g] = next_code
             new_code = f"{g}-{sequentials[g]:06d}"
             df.loc[i, 'CÓDIGO FINAL'] = new_code
-        else: report_log.append(f"⚠️ \"{row.get('TÍTULO','')}\" COMERCIAL sem grupo -> NULO")
+            generated_codes_count += 1
+        else:
+            report_log.append(f"⚠️ \"{row.get('TÍTULO','')}\" COMERCIAL sem grupo -> NULO")
+
+    # --- Pós-processamento e finalização ---
     df['Nº DO ITEM'] = df['Nº DO ITEM'].astype(str).str.strip()
     code_map = pd.Series(df['CÓDIGO FINAL'].values, index=df['Nº DO ITEM']).to_dict()
+
     def find_parent_code(item_id):
         parts = item_id.split('.')
         while len(parts) > 1:
             parts.pop()
-            if (parent := '.'.join(parts)) in code_map: return code_map[parent]
+            if (parent := '.'.join(parts)) in code_map: 
+                return code_map[parent]
         return ""
+    
     df['CÓDIGO PAI'] = df['Nº DO ITEM'].apply(find_parent_code)
+    
+    # Ordenação final
     df['TIPO'] = df.apply(lambda r: 1 if r['PROCESSO'] == 'FABRICADO' else 2 if r['CÓDIGO FINAL'] != 'NULO' else 3, axis=1)
     df = df.sort_values(by=['TIPO','CÓDIGO FINAL']).drop(columns=['TIPO']).reset_index(drop=True)
-    for col in df.select_dtypes(include=['object']): df[col] = df[col].astype(str).str.upper()
+
+    # Limpeza final e formatação
+    for col in df.select_dtypes(include=['object']): 
+        df[col] = df[col].astype(str).str.upper()
+
     save_sequentials({k:int(v) for k,v in sequentials.items()})
-    num_codes = df['CÓDIGO FINAL'].ne(df['Nº DA PEÇA']).sum() - df['CÓDIGO FINAL'].eq('NULO').sum()
-    report_log.insert(0, f"✅ Processamento concluído. {num_codes} novos códigos comerciais foram gerados.")
+
+    report_log.insert(0, f"✅ Processamento concluído. {generated_codes_count} novos códigos comerciais foram gerados.")
     return df, report_log
 
 @st.cache_data
