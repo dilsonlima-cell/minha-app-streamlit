@@ -212,7 +212,7 @@ st.markdown(f"""
 </style>
 """, unsafe_allow_html=True)
 
-# --- Funções auxiliares (sem alteração) ---
+# --- Funções auxiliares ---
 def load_sequentials(file_path=STATE_FILE):
     if os.path.exists(file_path):
         with open(file_path, "r", encoding="utf-8") as f:
@@ -224,29 +224,77 @@ def save_sequentials(data, file_path=STATE_FILE):
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
 
+# ==============================================================================
+# ====================== FUNÇÃO MODIFICADA ABAIXO ==============================
+# ==============================================================================
 @st.cache_data
 def load_data(uploaded_file):
     if uploaded_file is None: return None, [], "Nenhum arquivo carregado."
     report_log, df = [], None
     try:
         name = uploaded_file.name.lower()
-        if name.endswith(".xlsx"): df = pd.read_excel(uploaded_file)
+        if name.endswith(".xlsx"): 
+            df = pd.read_excel(uploaded_file)
+        
         elif name.endswith(".txt"):
-            content = uploaded_file.getvalue().decode('utf-8').splitlines()
-            header = [h.strip() for h in content[-1].split('\t')]
-            data_lines = [l for l in content[:-1] if l.strip()]
-            parsed_data = [(line.split('\t') + [''] * len(header))[:len(header)] for line in data_lines]
-            df = pd.DataFrame(parsed_data, columns=header).iloc[::-1].reset_index(drop=True)
-        else: return None, [], "Formato de arquivo não suportado."
+            # 1. Ler e decodificar o conteúdo do arquivo com fallback
+            content_bytes = uploaded_file.getvalue()
+            try:
+                content_str = content_bytes.decode('utf-8')
+            except UnicodeDecodeError:
+                report_log.append("ℹ️ Arquivo não é UTF-8, tentando decodificar como Latin-1.")
+                content_str = content_bytes.decode('latin-1') # Fallback comum para arquivos Windows
+            
+            # 2. Remover linhas vazias e separar cabeçalho (última linha) dos dados
+            lines = [line for line in content_str.splitlines() if line.strip()]
+            if not lines:
+                return None, [], "Arquivo TXT está vazio ou contém apenas linhas em branco."
+            
+            header_line = lines[-1]
+            data_lines = lines[:-1]
+            
+            # Limpa e divide o cabeçalho
+            header = [h.strip() for h in header_line.split('\t')]
+            
+            # 3. Usar pandas.read_csv para uma leitura mais robusta e confiável
+            # io.StringIO trata a string de dados como se fosse um arquivo na memória
+            data_io = io.StringIO("\n".join(data_lines))
+            
+            df = pd.read_csv(
+                data_io,
+                sep='\t',          # Define o separador como TAB
+                header=None,       # Informa que não há linha de cabeçalho nos dados
+                names=header,      # Aplica o cabeçalho que extraímos
+                engine='python',   # Usa a engine Python, que é mais flexível
+                dtype=str          # Lê todas as colunas como texto para evitar conversões erradas
+            )
+            
+            # 4. Inverter a ordem do DataFrame, pois o arquivo de origem é invertido
+            df = df.iloc[::-1].reset_index(drop=True)
+
+        else: 
+            return None, [], "Formato de arquivo não suportado."
+
+        # --- O RESTO DA FUNÇÃO (VALIDAÇÃO DE COLUNAS) PERMANECE O MESMO ---
         missing_cols = set(COLUNAS_OBRIGATORIAS) - set(df.columns)
         if missing_cols:
-            report_log.append(f"⚠️ Colunas ausentes (criadas vazias): **{', '.join(sorted(list(missing_cols)))}**")
-            for col in sorted(list(missing_cols)): df[col] = ''
+            report_log.append(f"⚠️ Colunas obrigatórias ausentes (criadas vazias): **{', '.join(sorted(list(missing_cols)))}**")
+            for col in sorted(list(missing_cols)): 
+                df[col] = ''
+        
+        # Garante a ordem das colunas e converte a quantidade
         final_order = COLUNAS_OBRIGATORIAS + sorted(list(set(df.columns) - set(COLUNAS_OBRIGATORIAS)))
-        df = df[final_order]
+        df = df[final_order].copy() # Usar .copy() para evitar SettingWithCopyWarning
         df['QTD.'] = pd.to_numeric(df['QTD.'], errors='coerce').fillna(0)
+        
+        # Limpa possíveis valores nulos que o pandas inseriu
+        df.fillna('', inplace=True)
+
         return df, report_log, "Arquivo lido com sucesso."
-    except Exception as e: return None, [], f"Erro ao ler o arquivo: {e}"
+        
+    except Exception as e: 
+        st.error(f"Ocorreu um erro crítico ao ler o arquivo: {e}")
+        return None, [f"❌ Erro ao ler o arquivo: {e}"], f"Erro ao ler o arquivo: {e}"
 
 def process_codes(df, sequentials, json_state, column_report):
     if df is None or df.empty: return pd.DataFrame(), [], "DataFrame vazio."
