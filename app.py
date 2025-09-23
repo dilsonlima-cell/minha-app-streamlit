@@ -30,7 +30,7 @@ def get_image_as_base64(path):
         return None
 
 # Carregando a imagem de fundo do novo cabeçalho
-header_bg_base64 = get_image_as_base64("header_bg.jpg") # Certifique-se de ter esta imagem na pasta
+header_bg_base64 = get_image_as_base64("header_bg.jpg")
 
 # SVG do ícone do cabeçalho
 icon_svg = """
@@ -51,164 +51,48 @@ else:
 
 st.markdown(f"""
 <style>
-    /* --- CORES PERSONALIZADAS --- */
     :root {{
-        --main-bg-color: #A3CB38; /* Verde da primeira imagem */
-        --accent-teal: #008080;   /* Verde azulado da segunda imagem */
-        --light-green-card: #e6f3d8; /* Verde claro dos cards */
-        --button-primary-color: #008080; /* Verde azulado para botões */
-        --button-primary-text-color: #FFFFFF;
-        --button-secondary-color: #8D99AE; /* Cinza para botões de reset */
-        --button-secondary-text-color: #FFFFFF;
-        --upload-button-color: #B3D10D; /* Amarelo-esverdeado para upload/download */
+        --main-bg-color: #A3CB38;
+        --accent-teal: #008080;
+        --light-green-card: #e6f3d8;
+        --upload-button-color: #B3D10D;
         --upload-button-text-color: #2D2D2D;
     }}
-
-    /* --- GERAL --- */
-    .stApp {{
-        background-color: var(--main-bg-color); /* Fundo da primeira imagem */
-    }}
-    h1, h2, h3 {{
-        color: #1a202c !important;
-    }}
-
-    /* --- CABEÇALHO --- */
-    .banner-header {{
-        display: flex;
-        align-items: center;
-        gap: 20px;
-        padding: 1.5rem;
-        border-radius: 12px;
-        margin-bottom: 2rem;
-        color: white;
-        {header_style}
-        background-size: cover;
-        background-position: center;
-    }}
-    .banner-icon {{
-        background-color: var(--upload-button-color);
-        border-radius: 50%;
-        width: 64px;
-        height: 64px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-    }}
-    .banner-icon svg {{
-        color: var(--upload-button-text-color);
-    }}
-    .banner-text h1 {{
-        font-size: 2.2rem;
-        font-weight: 700;
-        color: #FFFFFF !important;
-        margin: 0;
-        line-height: 1.2;
-    }}
-    .banner-text p {{
-        font-size: 1.1rem;
-        color: rgba(255, 255, 255, 0.9) !important;
-        margin: 0;
-    }}
-
-    /* --- CARD STYLES --- */
-    .st-emotion-cache-eah9w0 {{ /* Container para os cards na coluna */
-        background-color: #FFFFFF;
-        border: 1px solid #c3d9a5;
-        border-radius: 12px;
-        padding: 25px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
-        margin-bottom: 20px;
-    }}
-    .upload-box, .card-dark-results {{ /* ATUALIZADO: Cor de fundo da tabela de resultados e upload */
-        background-color: var(--accent-teal); /* Verde azulado */
-        color: #FFFFFF;
-        border-radius: 12px;
-        padding: 1.5rem;
-    }}
-    .upload-box h1, .upload-box h2, .upload-box h3, .upload-box p, .upload-box small {{
-        color: #FFFFFF !important;
-    }}
-    .card-dark-results h1, .card-dark-results h2, .card-dark-results h3, .card-dark-results p, .card-dark-results small {{
-        color: #FFFFFF !important;
-    }}
-
-    /* --- BOTÕES GERAIS --- */
-    .stButton > button {{
-        border-radius: 8px;
-        padding: 8px 20px;
-        font-weight: 600;
-        transition: all 0.2s ease-in-out;
-        width: 100%;
-    }}
+    .stApp {{ background-color: var(--main-bg-color); }}
+    h1, h2, h3 {{ color: #1a202c !important; }}
+    .banner-header {{ display: flex; align-items: center; gap: 20px; padding: 1.5rem; border-radius: 12px; margin-bottom: 2rem; color: white; {header_style} background-size: cover; background-position: center; }}
+    .banner-icon {{ background-color: var(--upload-button-color); border-radius: 50%; width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }}
+    .banner-icon svg {{ color: var(--upload-button-text-color); }}
+    .banner-text h1 {{ font-size: 2.2rem; font-weight: 700; color: #FFFFFF !important; margin: 0; line-height: 1.2; }}
+    .banner-text p {{ font-size: 1.1rem; color: rgba(255, 255, 255, 0.9) !important; margin: 0; }}
+    .st-emotion-cache-eah9w0 {{ background-color: #FFFFFF; border: 1px solid #c3d9a5; border-radius: 12px; padding: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.04); margin-bottom: 20px; }}
+    .upload-box, .card-dark-results {{ background-color: var(--accent-teal); color: #FFFFFF; border-radius: 12px; padding: 1.5rem; }}
+    .upload-box h1, .upload-box h2, .upload-box h3, .upload-box p, .upload-box small,
+    .card-dark-results h1, .card-dark-results h2, .card-dark-results h3, .card-dark-results p, .card-dark-results small {{ color: #FFFFFF !important; }}
+    .stButton > button {{ border-radius: 8px; padding: 8px 20px; font-weight: 600; transition: all 0.2s ease-in-out; width: 100%; }}
     .stButton > button:hover {{ filter: brightness(1.1); }}
-
-    /* ATUALIZADO: Botões 'Processar Arquivo', 'Resetar Campos', 'Resetar Seleção' */
-    .stButton[data-testid="stFormSubmitButton"] > button, /* Botão de processar */
+    .stButton[data-testid="stFormSubmitButton"] > button,
     .stButton:has( > [data-testid="stMarkdownContainer"] :contains("Resetar Campos")) > button,
-    .stButton:has( > [data-testid="stMarkdownContainer"] :contains("Resetar Seleção")) > button {{
-        background-color: var(--accent-teal) !important;
-        color: var(--button-primary-text-color) !important;
-        border: 1px solid var(--accent-teal) !important;
-    }}
+    .stButton:has( > [data-testid="stMarkdownContainer"] :contains("Resetar Seleção")) > button {{ background-color: var(--accent-teal) !important; color: #FFFFFF !important; border: 1px solid var(--accent-teal) !important; }}
     .stButton[data-testid="stFormSubmitButton"] > button:hover,
     .stButton:has( > [data-testid="stMarkdownContainer"] :contains("Resetar Campos")) > button:hover,
-    .stButton:has( > [data-testid="stMarkdownContainer"] :contains("Resetar Seleção")) > button:hover {{
-        background-color: var(--accent-teal) !important; /* Mantém a cor no hover */
-        filter: brightness(1.1);
-    }}
-
-    /* --- FILE UPLOADER --- */
+    .stButton:has( > [data-testid="stMarkdownContainer"] :contains("Resetar Seleção")) > button:hover {{ background-color: var(--accent-teal) !important; filter: brightness(1.1); }}
     .upload-box [data-testid="stFileUploader"] {{ border: 2px dashed #4E8A96; border-radius: 8px; }}
     .upload-box [data-testid="stFileUploader"] section {{ padding: 2rem 1rem; background-color: transparent; border: none; }}
-    .upload-box [data-testid="stFileUploader"] button {{
-        background-color: var(--upload-button-color) !important;
-        color: var(--upload-button-text-color) !important;
-        border: none !important;
-        border-radius: 8px !important;
-        font-weight: 600 !important;
-        padding: 10px 24px !important;
-    }}
+    .upload-box [data-testid="stFileUploader"] button {{ background-color: var(--upload-button-color) !important; color: var(--upload-button-text-color) !important; border: none !important; border-radius: 8px !important; font-weight: 600 !important; padding: 10px 24px !important; }}
     .upload-box [data-testid="stFileUploader"] small {{ color: rgba(255, 255, 255, 0.8); }}
     .formatos-suportados {{ text-align: left; margin-top: 1.5rem; font-size: 0.9rem; color: rgba(255, 255, 255, 0.9); }}
-    .formatos-suportados strong {{ color: white; }}
-    .formatos-suportados li {{ margin-left: 20px; }}
-
-    /* --- RELATÓRIO DE PROCESSAMENTO --- */
+    .formatos-suportados strong {{ color: white; }} .formatos-suportados li {{ margin-left: 20px; }}
     .report-container {{ max-height: 400px; overflow-y: auto; padding-right: 10px; }}
     .report-item {{ display: flex; align-items: center; padding: 12px; margin-bottom: 8px; border-radius: 8px; border: 1px solid; }}
     .report-item-icon {{ display: flex; justify-content: center; align-items: center; min-width: 24px; height: 24px; border-radius: 50%; margin-right: 12px; font-weight: bold; color: white; }}
-    .report-item-success {{ background-color: #e6f3d8; border-color: #c3d9a5; }}
-    .report-item-success .report-item-icon {{ background-color: #6E9B44; }}
-    .report-item-info {{ background-color: #e0f2f7; border-color: #a0c4d1; }}
-    .report-item-info .report-item-icon {{ background-color: #007B9E; }}
-    .report-item-warning {{ background-color: #fff3cd; border-color: #ffda77; }}
-    .report-item-warning .report-item-icon {{ background-color: #FFAA00; }}
-    .stDownloadButton > button {{
-        background-color: var(--upload-button-color) !important;
-        color: var(--upload-button-text-color) !important;
-        font-size: 1.1rem !important;
-        font-weight: 700 !important;
-        padding: 1rem !important;
-        border-radius: 12px !important;
-        border: none !important;
-        width: 100%;
-    }}
+    .report-item-success {{ background-color: #e6f3d8; border-color: #c3d9a5; }} .report-item-success .report-item-icon {{ background-color: #6E9B44; }}
+    .report-item-info {{ background-color: #e0f2f7; border-color: #a0c4d1; }} .report-item-info .report-item-icon {{ background-color: #007B9E; }}
+    .report-item-warning {{ background-color: #fff3cd; border-color: #ffda77; }} .report-item-warning .report-item-icon {{ background-color: #FFAA00; }}
+    .stDownloadButton > button {{ background-color: var(--upload-button-color) !important; color: var(--upload-button-text-color) !important; font-size: 1.1rem !important; font-weight: 700 !important; padding: 1rem !important; border-radius: 12px !important; border: none !important; width: 100%; }}
     .stDownloadButton > button:hover {{ filter: brightness(1.05); color: #000 !important; }}
-    
-    /* ATUALIZADO: Cor dos inputs numéricos na tabela de grupos */
-    [data-testid="stNumberInput"] > div > input {{
-        background-color: var(--upload-button-color) !important; /* Amarelo-esverdeado */
-        color: var(--upload-button-text-color) !important; /* Texto escuro */
-        border: none !important;
-        border-radius: 8px !important;
-        padding: 8px 12px !important;
-        font-weight: 600 !important;
-    }}
-    [data-testid="stNumberInput"] > div > input:focus {{
-        box-shadow: 0 0 0 2px var(--accent-teal) !important;
-    }}
-
+    [data-testid="stNumberInput"] > div > input {{ background-color: var(--upload-button-color) !important; color: var(--upload-button-text-color) !important; border: none !important; border-radius: 8px !important; padding: 8px 12px !important; font-weight: 600 !important; }}
+    [data-testid="stNumberInput"] > div > input:focus {{ box-shadow: 0 0 0 2px var(--accent-teal) !important; }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -232,7 +116,6 @@ def load_data(uploaded_file):
         name = uploaded_file.name.lower()
         if name.endswith(".xlsx"): 
             df = pd.read_excel(uploaded_file)
-        
         elif name.endswith(".txt"):
             content_bytes = uploaded_file.getvalue()
             try:
@@ -250,16 +133,8 @@ def load_data(uploaded_file):
             header = [h.strip() for h in header_line.split('\t')]
             data_io = io.StringIO("\n".join(data_lines))
             
-            df = pd.read_csv(
-                data_io,
-                sep='\t',
-                header=None,
-                names=header,
-                engine='python',
-                dtype=str
-            )
+            df = pd.read_csv(data_io, sep='\t', header=None, names=header, engine='python', dtype=str)
             df = df.iloc[::-1].reset_index(drop=True)
-
         else: 
             return None, [], "Formato de arquivo não suportado."
 
@@ -269,7 +144,8 @@ def load_data(uploaded_file):
             for col in sorted(list(missing_cols)): 
                 df[col] = ''
         
-        final_order = COLUNAS_OBRIGATORIAS + sorted(list(set(df.columns) - set(COLUNAS_OBRIGATORias)))
+        # AQUI ESTAVA O ERRO DE DIGITAÇÃO: 'COLUNAS_OBRIGATORias'
+        final_order = COLUNAS_OBRIGATORIAS + sorted(list(set(df.columns) - set(COLUNAS_OBRIGATORIAS)))
         df = df[final_order].copy()
         df['QTD.'] = pd.to_numeric(df['QTD.'], errors='coerce').fillna(0)
         df.fillna('', inplace=True)
@@ -279,9 +155,6 @@ def load_data(uploaded_file):
         st.error(f"Ocorreu um erro crítico ao ler o arquivo: {e}")
         return None, [f"❌ Erro ao ler o arquivo: {e}"], f"Erro ao ler o arquivo: {e}"
 
-# ==============================================================================
-# ======================== SEÇÃO DO CÓDIGO CORRIGIDA ===========================
-# ==============================================================================
 def process_codes(df, sequentials, json_state, column_report):
     if df is None or df.empty: return pd.DataFrame(), [], "DataFrame vazio."
     
@@ -290,14 +163,11 @@ def process_codes(df, sequentials, json_state, column_report):
     for g in sequentials.keys(): 
         sequentials[g] = max(int(sequentials[g]), int(json_state.get(g, 0)))
 
-    # --- Padrões Regex ---
     group_pattern = re.compile(r'(\d{3})')
     manu_pattern = re.compile(r'^\d{2}-\d{4}-\d{4}-.*')
     comm_pattern = re.compile(r'^\d{3}-(\d+)$')
-    # CORRIGIDO: Padrão com hífen para a estrutura especial
     special_structure_pattern = re.compile(r'^\d{2}-\d{4}-[A-Za-z0-9]{4}-\d{2}$')
 
-    # --- Pré-processamento da coluna PROCESSO ---
     df['PROCESSO'] = df['PROCESSO'].astype(str).str.strip().str.upper()
     empty_process = df['PROCESSO'].isin(['', 'NAN', None]) | pd.isna(df['PROCESSO'])
     count_filled = 0
@@ -308,7 +178,6 @@ def process_codes(df, sequentials, json_state, column_report):
     if count_filled > 0: 
         report_log.append(f"✔️ Coluna 'PROCESSO' preenchida para {count_filled} itens.")
 
-    # --- Lógica de Geração de Códigos ---
     df['CÓDIGO FINAL'] = 'NULO'
     
     for _, row in df.iterrows():
@@ -324,13 +193,10 @@ def process_codes(df, sequentials, json_state, column_report):
     for i, row in df.iterrows():
         num_peca = str(row.get('Nº DA PEÇA',''))
         
-        # LÓGICA INVERTIDA: A verificação do formato especial agora tem prioridade máxima.
-        # Se o Nº DA PEÇA corresponder a YY-NNNN-XXXX-RR, ele SEMPRE manterá o código original.
         if special_structure_pattern.match(num_peca):
             df.loc[i, 'CÓDIGO FINAL'] = num_peca
-            continue # Pula para o próximo item, garantindo que nenhuma outra regra seja aplicada.
+            continue
 
-        # Agora, checa o processo para outros casos que não se encaixam no padrão acima
         if row['PROCESSO'] == 'FABRICADO':
             df.loc[i, 'CÓDIGO FINAL'] = row.get('Nº DA PEÇA', '')
             continue
@@ -356,7 +222,6 @@ def process_codes(df, sequentials, json_state, column_report):
         else:
             report_log.append(f"⚠️ \"{row.get('TÍTULO','')}\" COMERCIAL sem grupo -> NULO")
 
-    # --- Pós-processamento e finalização ---
     df['Nº DO ITEM'] = df['Nº DO ITEM'].astype(str).str.strip()
     code_map = pd.Series(df['CÓDIGO FINAL'].values, index=df['Nº DO ITEM']).to_dict()
 
@@ -388,8 +253,6 @@ def to_excel(df):
     return out.getvalue()
     
 # --- Interface --- #
-
-# Cabeçalho
 st.markdown(f"""
 <div class="banner-header">
     <div class="banner-icon">{icon_svg}</div>
@@ -400,10 +263,8 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# Layout principal
 col1, col2 = st.columns([5, 7])
 
-# --- Coluna da Esquerda ---
 with col1:
     with st.container(border=True):
         st.subheader("⚙️ Tabela de Grupos")
@@ -434,7 +295,6 @@ with col1:
                 else: st.markdown(f'<div class="report-item report-item-info"><div class="report-item-icon">i</div><div>{log}</div></div>', unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
-# --- Coluna da Direita ---
 with col2:
     with st.container(border=True):
         st.markdown('<div class="upload-box">', unsafe_allow_html=True)
@@ -481,20 +341,20 @@ with col2:
             all_cols = st.session_state.available_columns
             mid_point = math.ceil(len(all_cols) / 2)
             c1, c2 = st.columns(2)
-            selected_cols_list = []
+            
             def update_select_all():
                 st.session_state.select_all_cols = all(st.session_state.get(f"col_select_{c}", True) for c in all_cols)
+
             for i, col_name in enumerate(all_cols):
                 container = c1 if i < mid_point else c2
                 default_val = select_all if f"col_select_{col_name}" not in st.session_state else st.session_state.get(f"col_select_{col_name}", True)
-                if container.checkbox(col_name, value=default_val, key=f"col_select_{col_name}", on_change=update_select_all):
-                    selected_cols_list.append(col_name)
+                container.checkbox(col_name, value=default_val, key=f"col_select_{col_name}", on_change=update_select_all)
+
             st.session_state.selected_columns = [c for c in all_cols if st.session_state.get(f"col_select_{c}", True)]
             st.markdown("---")
             st.caption(f"**{len(st.session_state.selected_columns)} de {len(all_cols)} colunas selecionadas**")
             st.markdown('</div>', unsafe_allow_html=True)
 
-# --- Seção de Dados e Download ---
 if "last_df_processed" in st.session_state:
     st.markdown("---")
     st.subheader("Resultados")
@@ -511,7 +371,6 @@ if "last_df_processed" in st.session_state:
         st.dataframe(df_to_export, use_container_width=True, height=500)
         st.markdown('</div>', unsafe_allow_html=True)
 
-# --- Lógica de Processamento ---
 if process_clicked:
     if uploaded_file is None:
         st.toast("⚠️ Por favor, carregue um arquivo.", icon="⚠️")
