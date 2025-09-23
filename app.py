@@ -144,7 +144,6 @@ def load_data(uploaded_file):
             for col in sorted(list(missing_cols)): 
                 df[col] = ''
         
-        # AQUI ESTAVA O ERRO DE DIGITAÇÃO: 'COLUNAS_OBRIGATORias'
         final_order = COLUNAS_OBRIGATORIAS + sorted(list(set(df.columns) - set(COLUNAS_OBRIGATORIAS)))
         df = df[final_order].copy()
         df['QTD.'] = pd.to_numeric(df['QTD.'], errors='coerce').fillna(0)
@@ -155,7 +154,10 @@ def load_data(uploaded_file):
         st.error(f"Ocorreu um erro crítico ao ler o arquivo: {e}")
         return None, [f"❌ Erro ao ler o arquivo: {e}"], f"Erro ao ler o arquivo: {e}"
 
-def process_codes(df, sequentials, json_state, column_report):
+# ==============================================================================
+# ======================== FUNÇÃO PROCESS_CODES ATUALIZADA =====================
+# ==============================================================================
+def process_codes(df, sequentials, json_state, column_report, main_assembly_code):
     if df is None or df.empty: return pd.DataFrame(), [], "DataFrame vazio."
     
     report_log = list(column_report)
@@ -222,6 +224,7 @@ def process_codes(df, sequentials, json_state, column_report):
         else:
             report_log.append(f"⚠️ \"{row.get('TÍTULO','')}\" COMERCIAL sem grupo -> NULO")
 
+    # --- LÓGICA DO CÓDIGO PAI ATUALIZADA ---
     df['Nº DO ITEM'] = df['Nº DO ITEM'].astype(str).str.strip()
     code_map = pd.Series(df['CÓDIGO FINAL'].values, index=df['Nº DO ITEM']).to_dict()
 
@@ -234,6 +237,12 @@ def process_codes(df, sequentials, json_state, column_report):
         return ""
     
     df['CÓDIGO PAI'] = df['Nº DO ITEM'].apply(find_parent_code)
+    
+    # NOVO: Aplica o código do conjunto principal aos itens de nível superior
+    if main_assembly_code:
+        main_code_upper = str(main_assembly_code).strip().upper()
+        # Aplica somente onde o 'CÓDIGO PAI' está em branco
+        df.loc[df['CÓDIGO PAI'] == '', 'CÓDIGO PAI'] = main_code_upper
     
     df['TIPO'] = df.apply(lambda r: 1 if r['PROCESSO'] == 'FABRICADO' else 2 if r['CÓDIGO FINAL'] != 'NULO' else 3, axis=1)
     df = df.sort_values(by=['TIPO','CÓDIGO FINAL']).drop(columns=['TIPO']).reset_index(drop=True)
@@ -300,23 +309,30 @@ with col2:
         st.markdown('<div class="upload-box">', unsafe_allow_html=True)
         st.subheader("1. Carregar Arquivo")
         uploaded_file = st.file_uploader(
-            "Arraste e solte seu arquivo aqui ou clique para selecionar um arquivo TXT ou XLSX",
-            type=['txt', 'xlsx'],
-            label_visibility="visible"
+            "Arraste e solte seu arquivo aqui ou clique para selecionar",
+            type=['txt', 'xlsx']
         )
         st.markdown("""
         <div class="formatos-suportados">
             <strong>Formatos suportados:</strong>
-            <ul>
-                <li>TXT: Arquivos de texto exportados do SolidWorks</li>
-                <li>XLSX: Planilhas Excel</li>
-            </ul>
+            <ul><li>TXT e XLSX</li></ul>
         </div>
         """, unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
+
+    # ==============================================================================
+    # ======================== NOVO CAMPO ADICIONADO AQUI ==========================
+    # ==============================================================================
+    with st.container(border=True):
+        st.subheader("2. Informação do Conjunto")
+        main_assembly_code = st.text_input(
+            "Código do Conjunto Principal",
+            help="Insira o código do conjunto principal (ex: 10-3515-0000-00). Ele será usado como 'Código Pai' para os itens de nível superior.",
+            placeholder="Ex: 10-3515-0000-00"
+        )
     
     with st.container(border=True):
-        st.subheader("2. Controle de Processamento")
+        st.subheader("3. Controle de Processamento")
         b_cols = st.columns(2)
         process_clicked = b_cols[0].button("Processar Arquivo", type="primary", use_container_width=True)
         if b_cols[1].button("Resetar Campos", use_container_width=True):
@@ -327,7 +343,7 @@ with col2:
         with st.container(border=True):
             st.markdown(f'<div style="background-color: var(--light-green-card); padding: 0 0 10px 0; border-radius: 12px 12px 0 0;">', unsafe_allow_html=True)
             head_cols = st.columns([1,1])
-            head_cols[0].markdown("<h3 style='margin-top: 0;'>3. Selecionar Colunas</h3>", unsafe_allow_html=True)
+            head_cols[0].markdown("<h3 style='margin-top: 0;'>4. Selecionar Colunas</h3>", unsafe_allow_html=True)
             if head_cols[1].button("Resetar Seleção", key="reset_cols", use_container_width=True):
                 for col in st.session_state.available_columns:
                     st.session_state[f"col_select_{col}"] = True
@@ -374,13 +390,16 @@ if "last_df_processed" in st.session_state:
 if process_clicked:
     if uploaded_file is None:
         st.toast("⚠️ Por favor, carregue um arquivo.", icon="⚠️")
+    elif not main_assembly_code:
+        st.toast("⚠️ Por favor, insira o Código do Conjunto Principal.", icon="⚠️")
     else:
         sequentials = {g: int(st.session_state.get(f"seq_{g}_v{version}", 0)) for g in group_table.keys()}
         try:
             with st.spinner("Processando..."):
                 df_raw, column_report, _ = load_data(uploaded_file)
                 if df_raw is not None:
-                    df_proc, report = process_codes(df_raw.copy(), sequentials, json_state, column_report)
+                    # Passando o novo código para a função de processamento
+                    df_proc, report = process_codes(df_raw.copy(), sequentials, json_state, column_report, main_assembly_code)
                     st.session_state["last_report"] = report
                     st.session_state["last_df_processed"] = df_proc.to_json(orient='split', date_format='iso')
                     st.session_state["available_columns"] = df_proc.columns.tolist()
